@@ -1,0 +1,264 @@
+* CM.BP
+* Customer App
+* Sample app for PyGui testing on sd
+* We should define windows within a function to ensure objects used during creation (the layout) get garbage collected
+*  (the _setup.py script)
+* Because we are running embedded within the sd app and it is possible the sd process could be alive for long periods of
+*  time, we should clean up (set to None) any objects created either within the _setup.py or _step.py script.
+* Also at some point the sd Python function PY_PYGUISTEP()  (sd_py_gui_step in sdext_py.c) should be passed the name of #  *   the function defined in the _step.py script (in this example gui_step).  Currently it is hardcoded. 
+
+$include KEYS.H
+$include SDPYFUNC.H
+$CATALOGUE CM.BP LOCAL
+
+lf = char(10)   ;* line feed character
+
+* These should be generated using the sd GENERATE command. For now we are doing this manually
+* Also may want to modify GENERATE for create the xx_DICT dyn arrays
+
+equate CM_NAME to 1
+equate CM_ADDR          to    2
+equate CM_ADDR2         to    3
+equate CM_CITY          to    4
+equate CM_STATE         to    5
+equate CM_ZIP           to    6
+equate CM_COUNTRY       to    7
+equate CM_STATUS        to    8
+equate CM_AR_LIMIT      to    9
+equate CM_TERMS         to    10
+equate CM_PHONE         to    11
+equate CM_FAX           to    12
+equate CM_WEB           to    13
+equate CM_CONTACT       to    14
+equate CM_CONTACT_PHONE to    15
+equate CM_CONTACT_EMAIL to    16
+equate CM_DFLT_SHIP_ID  to    17
+equate CM_SIZE  to    17
+
+equate CS_NAME to 1
+equate CS_ADDR          to    2
+equate CS_ADDR2         to    3
+equate CS_CITY          to    4
+equate CS_STATE         to    5
+equate CS_ZIP           to    6
+equate CS_COUNTRY       to    7
+equate CS_STATUS        to    8
+equate CS_PHONE         to    9
+equate CS_FAX           to    10
+equate CS_SIZE to    10
+
+
+CM_DICT_NAME = ''
+CM_DICT_NAME<CM_NAME> = "CM_NAME"
+CM_DICT_NAME<CM_ADDR> = "CM_ADDR"
+CM_DICT_NAME<CM_ADDR2> = "CM_ADDR2"
+CM_DICT_NAME<CM_CITY> = "CM_CITY"
+CM_DICT_NAME<CM_STATE> = "CM_STATE"
+CM_DICT_NAME<CM_ZIP> = "CM_ZIP"
+CM_DICT_NAME<CM_COUNTRY> = "CM_COUNTRY"
+CM_DICT_NAME<CM_STATUS> = "CM_STATUS"
+CM_DICT_NAME<CM_AR_LIMIT> = "CM_AR_LIMIT"
+CM_DICT_NAME<CM_TERMS> = "CM_TERMS"
+CM_DICT_NAME<CM_PHONE> = "CM_PHONE"
+CM_DICT_NAME<CM_FAX> = "CM_FAX"
+CM_DICT_NAME<CM_WEB> = "CM_WEB"
+CM_DICT_NAME<CM_CONTACT> = "CM_CONTACT"
+CM_DICT_NAME<CM_CONTACT_PHONE> = "CM_CONTACT_PHONE"
+CM_DICT_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT_EMAIL"
+CM_DICT_NAME<CM_DFLT_SHIP_ID> = "CM_DFLT_SHIP_ID" 
+
+
+
+CS_DICT_NAME = ''
+CS_DICT_NAME<CS_NAME> = "CS_NAME"
+CS_DICT_NAME<CS_ADDR> = "CS_ADDR"
+CS_DICT_NAME<CS_ADDR2> = "CS_ADDR2"
+CS_DICT_NAME<CS_CITY> = "CS_CITY"
+CS_DICT_NAME<CS_STATE> = "CS_STATE"
+CS_DICT_NAME<CS_ZIP> = "CS_ZIP"
+CS_DICT_NAME<CS_COUNTRY> = "CS_COUNTRY"
+CS_DICT_NAME<CS_STATUS> = "CS_STATUS"
+CS_DICT_NAME<CS_PHONE> = "CS_PHONE"
+CS_DICT_NAME<CS_FAX> = "CS_FAX"
+
+* rem to point these to where you save the python scripts
+SETUP.FILE = "/home/sd/user_accounts/mabull/PYGUI/CM.py"
+openseq SETUP.FILE to SETUP.F else 
+  crt 'Cannot open setup file: ':SETUP.FILE
+  stop
+end
+*
+close SETUP.F
+
+* do the files exist?
+open "CUSTOMERS" to CM_FILE ELSE
+  crt 'CANNOT CREATE CUSTOMERS'
+  stop
+end
+open "SHIP_TO" to CS_FILE ELSE
+  crt 'CANNOT CREATE SHIP_TO'
+  stop
+end
+
+* get the dictionaries
+equate GLOBAL_DICT_SZ to 50
+dim global_dict_array(GLOBAL_DICT_SZ)
+DIM CM_DICT(CM_SIZE)
+DIM CS_DICT(CS_SIZE)
+GOSUB pop_dict("CUSTOMERS",CM_DICT_NAME)
+* rem cannot pass matrix in local sub
+for i = 1 to CM_SIZE
+  if i <= GLOBAL_DICT_SZ then
+    CM_DICT(i) = global_dict_array(i)
+  end else
+    CRT 'Resize global_dict_array !!!'
+  end
+next i
+*
+GOSUB pop_dict("SHIP_TO",CS_DICT_NAME)
+for i = 1 to CS_SIZE
+  if i <= GLOBAL_DICT_SZ then
+    CS_DICT(i) = global_dict_array(i)
+  end else
+    CRT 'Resize global_dict_array !!!'
+  end
+next i
+
+STATUS.VALUE = PY_INITIALIZE()
+if STATUS() # 0 then
+    crt "Python initialization failed: ":STATUS()
+    stop
+end
+
+CRT "Setup Gui Window"
+
+STATUS.VALUE = PY_RUNFILE(SETUP.FILE)
+if STATUS() # 0 then
+    crt "PYGui setup failed: ":STATUS()
+    goto SHUTDOWN
+end
+
+* Load any dropdown lists here
+*
+* CREATE LISTS FOR  DROP DOWN CONTROLS
+*
+TERMS.LIST  = ''  ;* LIST FOR PAYMENT TERMS SELECTION
+TERMS.IDX   = ''
+STATES.LIST = ''  ;* LIST FOR STATE SELECTION
+STATES.IDX  = ''
+STATUS.LIST = ''  ;* LIST FOR CUSTOMER STATUS SELECTION
+STATUS.IDX  = ''
+
+CM.LIST = '[]'  ;* CUSTOMER LIST FOR CUSTOMER 
+CM.LIST.IDX  = '[]'
+CM.LIST.CT  = 0
+
+SHIPTO.LIST = '[]'  ;* SHIPTO LIST FOR CUSTOMER NOTE POPULATED VIA CM_GET_REC
+SHIPTO.LIST.IDX  = '[]'
+SHIPTO.LIST.CT = 0
+
+*CALL GUI.SEARCH2 (F.NAME,USEARCH.FLD,USEARCH.STR,USORT,DISP.FLDS,MAX.LIST,START.LIST,LST.LNS,LST.IDX,LIST.CT,OPTIONS,EMSG)
+*CALL GUI.SEARCH2 ("SHIP_TO","CS_CM_ID",'!':CS_ID,"CS_NAME","CS_ADDR CS_CITY CS_STATE",1000,1,SHIPTO.LIST,SHIPTO.LIST.IDX,SH**IPTO.LIST.CT,"TRIM",EMSG)
+
+* GET CUSTOMERS
+CALL GUI.SEARCH2 ("CUSTOMERS","","","CM_NAME":@FM:"":@FM:'WITH CM_STATUS = "A"',"CM_NAME",1000,1,CM.LIST,CM.LIST.IDX,CM.LIST.CT,"TRIM",EMSG)
+* now populate our lists
+pyscript = "cm_list = ":CM.LIST:lf
+pyscript := 'main_window["CM_LIST"].update(values=cm_list)':lf
+rtn_stat = PY_RUNSTRING(pyscript)
+if rtn_stat <> 0 then
+    crt "Customer List Load failed: ":STATUS()
+    GOTO SHUTDOWN
+end
+
+**CALL LIST.LOAD(VAL.FVAR,"STATES","2",'',STATES.LIST,STATES.IDX,LIST.COUNT,EMSG)
+**IF EMSG <> "" THEN GOTO EXIT.999
+**CALL LIST.LOAD(VAL.FVAR,"TERMS","2",'',TERMS.LIST,TERMS.IDX,LIST.COUNT,EMSG)
+**IF EMSG <> "" THEN GOTO EXIT.999
+**CALL LIST.LOAD(VAL.FVAR,"CM.STATUS","2",'',STATUS.LIST,STATUS.IDX,LIST.COUNT,EMSG)
+**IF EMSG <> "" THEN GOTO EXIT.999
+
+SAVE.REQUIRED = @FALSE     ;* has there been a change to the existing record?
+CRT "Run the gui loop"
+DONE = 0
+*
+loop while DONE = 0
+*
+    STATUS.VALUE = PY_PYGUISTEP()
+    if STATUS() # 0 then
+        crt "PyGUI step failed: ":STATUS()
+        DONE = 1
+    END ELSE
+        EVENT = PY_PYPOLL()
+        if STATUS() = 0 then
+            EVENT.NAME = FIELD(EVENT,@FM, 1)
+
+            EVENT.DATA = FIELD(EVENT,@FM, 2)
+            crt "GUI EVENT"
+            crt "  NAME: ":EVENT.NAME
+            crt "PAYLOAD: ":EVENT.DATA
+            
+            if EVENT.NAME = "main_window" and EVENT.DATA = "closed" then
+                DONE = 1
+                exit      ;* get out of loop
+            end
+              
+            if EVENT.NAME = "Get" then
+                if SAVE.REQUIRED then
+                    MSG = 'Status: Data not saved, Cancel current changes then Get new Customer!'
+                    result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+                end else
+                    CM_ID = PY_DICTVALGETS("values","CM_ID")
+                    if CM_ID = '' then
+                        MSG = 'Status: No Customer Id Found'
+                        result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+                    end else
+                        read CM_REC from CM_FILE, CM_ID then
+                            CS_ID = CM_REC<CM_DFLT_SHIP_ID>
+                            read CS_REC from CS_FILE, CS_ID else
+                                MSG = 'Status: ': CS_ID : ' Not Found in SHIP_TO!'
+                                result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+                            end
+                            * populate window with customer data 
+                        end else
+                                MSG = 'Status: ': CM_ID :' Not Found in CUSTOMERS!'
+                                result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+                        end
+                    end
+                end
+                
+            end else  ;* unknown event
+                MSG = 'Status: EVENT - ': EVENT.NAME : ' Not Implemented!'
+                result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+            end
+        end     ;* poll failed, try again?
+    end
+repeat
+
+SHUTDOWN:
+crt "sd CM.BP app ended: ":STATUS.VALUE
+
+
+********************************************************************************************************
+* pop_dict
+* populated dictionary records for passed file
+* pop_fn - file to reference
+* pop_dict_name - dyn array of dictionary names
+* note: because we cannot pass matrixes in a local sub we use 
+*
+local subroutine pop_dict(pop_fn, pop_dict_name)
+
+    open "DICT", pop_fn to dict_f then
+        dict_ct = dcount(pop_dict_name,@FM)
+        for pi = 1 to dict_ct
+            read global_dict_array(pi) from dict_f, pop_dict_name<pi> else
+                global_dict_array(pi) = '-NOF-'
+            end
+        next pi
+    end
+    return    
+end
+
+9999:  *
+end
+* END-CODE

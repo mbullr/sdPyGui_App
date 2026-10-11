@@ -37,7 +37,8 @@ def my_popup(my_title, my_message):
 
 def app_window():
   Frame1_layout = [
-  [sg.Text(text='Customer Id',size=(11,1)),sg.Combo(cm_id_options, default_value='Choose...', key='CM_ID', enable_events=True,size=(11,1), readonly=True),sg.Button(button_text='Get',size=(5,1)), sg.Button(button_text='New',size=(5,1))],
+  [sg.Text(text='Customer Id',size=(11,1)),sg.Combo("", key='CM_LIST', size=(11,1), readonly=True), sg.Button(button_text='Get',size=(5,1))],
+  [sg.Button(button_text='New',size=(5,1))],
   [sg.Text(text='Name',size=(9,1)),sg.Input(size=(29,1),key='CM_NAME')],
   [sg.Text(text='Addr1',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR')],
   [sg.Text(text='Addr2',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR2')],
@@ -62,13 +63,14 @@ def app_window():
   ]
   
   CM_layout = [
-  [sg.Frame(size=(259,300),title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',size=(260,300),layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
+  [sg.Frame(size=(260,250),title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',size=(260,250),layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
   [],
   [sg.Text(text='Customer Contacts',size=(17,1))],
   [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue")],
-  [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1)),sg.Button(button_text='Delete Customer',size=(8,2))]
+  [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1)),sg.Button(button_text='Delete Customer',size=(8,2))],
+  [sg.Text(text='Status:', key = '-STATUS-',size=(80,1))]
   ] 
-  return sg.Window('Customers', CM_layout, size=(861,527), resizable=True,  finalize=True)
+  return sg.Window('Customers', CM_layout, size=(860,600),location=(100, 200),  resizable=True,  finalize=True)
   
 #
 # define the all important step function
@@ -90,8 +92,10 @@ def gui_step(max_milliseconds=5):
     window, event, values = sg.read_all_windows(timeout=max_milliseconds)
     
     if event == '__TIMEOUT__':
-    # in an actual app we would not pass this event, for now we are doing it to track returns to VM
-        sd.post_event(event, event) 
+    # in an actual app we would not pass this event, 
+    #    unless you want to see the timeout returns to VM
+    #    sd.post_event(event, event)
+        pass
     
     # closing window logic
     elif event == sg.WIN_CLOSED:
@@ -138,14 +142,18 @@ def gui_step(max_milliseconds=5):
             payload = "Cancel Click"
             sd.post_event(event,payload)
         # #
-        elif event == 'Delete':
-            payload = "Delete Click"
+        elif event == 'Delete Customer':
+            payload = "Delete Customer Click"
             sd.post_event(event,payload)
         # #
         elif event == 'Delete ShipTo':
             payload = "Delete ShipTo Click"
-            sd.post_event(event,payload)        
-        
+            sd.post_event(event,payload)
+        # #
+        elif event == 'Create ShipTo':
+            payload = "Create ShipTo Click"
+            sd.post_event(event,payload)
+        # #
         elif event == '-PUP-':
             if PUP_window == None:
                 PUP_window = my_popup('The PopUp','This PopUp Is For YOU!')
@@ -158,7 +166,7 @@ def gui_step(max_milliseconds=5):
     
     
     
-main_window = my_main_window()
+main_window = app_window()
 #
 # rem print(window.key_dict.keys()) to list keys in window
 # dict_keys(['-UNAME-', '-DOB-', '-ACCOUNT-', 'Ok'])
