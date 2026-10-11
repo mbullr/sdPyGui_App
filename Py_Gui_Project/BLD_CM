@@ -1,0 +1,231 @@
+PROGRAM BLD_CM
+**************************************************************************
+* Copyright (c)2026 The SD Developers, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+*
+**************************************************************************
+*
+* MODULE: BLD_CM
+* AUTHOR: MAB
+* VERSION: 1.0.0
+* CREATED: 08/xx/2026
+* UPDATED:
+*
+* MAINTENANCE RECORD:
+*
+* EQUATE:
+*
+*  - creates dummy db file CUSTOMERS
+*  - CUSTOMERS populated with data found in PYGUI/customer_records.csv
+*
+equate CM_NAME to 1
+equate CM_ADDR          to    2
+equate CM_ADDR2         to    3
+equate CM_CITY          to    4
+equate CM_STATE         to    5
+equate CM_ZIP           to    6
+equate CM_COUNTRY       to    7
+equate CM_STATUS        to    8
+equate CM_AR_LIMIT      to    9
+equate CM_TERMS         to    10
+equate CM_PHONE         to    11
+equate CM_FAX           to    12
+equate CM_WEB           to    13
+equate CM_CONTACT       to    14
+equate CM_CONTACT_PHONE to    15
+equate CM_CONTACT_EMAIL to    16
+equate CM_DFLT_SHIP_ID  to    17
+
+equate CS_NAME to 1
+equate CS_ADDR          to    2
+equate CS_ADDR2         to    3
+equate CS_CITY          to    4
+equate CS_STATE         to    5
+equate CS_ZIP           to    6
+equate CS_COUNTRY       to    7
+equate CS_STATUS        to    8
+equate CS_PHONE         to    9
+equate CS_FAX           to    10
+
+
+*
+* DOES OUR TEST FILE EXIST?
+*
+OPEN "CUSTOMERS" TO CM_FILE THEN
+    CRT 'CUSTOMERS ALREADY EXISTS'
+END ELSE
+*
+* NOPE, CREATE IT
+*
+    CRT 'CREATING CUSTOMER FILE'
+    EXECUTE "CREATE.FILE CUSTOMERS"
+    EXECUTE "CREATE.FILE SHIP_TO"
+    
+* NOW OPEN IT
+    OPEN "CUSTOMERS" TO CM_FILE ELSE
+      CRT 'CANNOT CREATE CUSTOMERS'
+      STOP
+    END
+    OPEN "SHIP_TO" TO CS_FILE ELSE
+      CRT 'CANNOT CREATE SHIP_TO'
+      STOP
+    END
+* CREATE RECORDS
+    OPEN "PYGUI" TO PYGUI_FILE THEN
+        READ CM_RECS FROM PYGUI_FILE, "customer_records.csv" THEN
+            REC_CNT = DCOUNT(CM_RECS,@FM)
+            FOR I = 2 TO REC_CNT           ;* rem 1st record is headings
+                REC = CM_RECS<I>
+                DATAFIELDS = CSVDQ(REC)
+                *CM_NAME, CM_ADDR, CM_ADDR2, CM_CITY, CM_STATE, CM_ZIP, CM_COUNTRY, CM_AR_LIMIT, CM_TERMS, CM_PHONE, CM_FAX, CM_WEB, CM_CONTACT, CM_CONTACT_PHONE, CM_CONTACT_EMAIL
+
+                CM_REC = ''
+                
+                CM_REC<CM_NAME> = DATAFIELDS<1>        
+                CM_REC<CM_ADDR> = DATAFIELDS<2>         
+                CM_REC<CM_ADDR2> = DATAFIELDS<3>        
+                CM_REC<CM_CITY> = DATAFIELDS<4>         
+                CM_REC<CM_STATE> = DATAFIELDS<5>        
+                CM_REC<CM_ZIP> = DATAFIELDS<6>          
+                CM_REC<CM_COUNTRY> = DATAFIELDS<7>      
+                CM_REC<CM_STATUS> = DATAFIELDS<8>       
+                CM_REC<CM_AR_LIMIT> = ICONV(DATAFIELDS<9>, "MD4")     
+                CM_REC<CM_TERMS> = DATAFIELDS<10>        
+                CM_REC<CM_PHONE> = DATAFIELDS<11>        
+                CM_REC<CM_FAX> = DATAFIELDS<12>          
+                CM_REC<CM_WEB> = DATAFIELDS<13>          
+                CM_REC<CM_CONTACT> = DATAFIELDS<14>      
+                CM_REC<CM_CONTACT_PHONE> = DATAFIELDS<15>
+                CM_REC<CM_CONTACT_EMAIL> = DATAFIELDS<16>
+
+                
+                CM_ID = "CM_":I+99
+                CS_ID = CM_ID:".1"
+                CM_REC<CM_DFLT_SHIP_ID> = CS_ID
+                *
+                WRITE CM_REC ON CM_FILE, CM_ID
+                
+                CS_REC = ""
+                CS_REC<CS_NAME> = DATAFIELDS<1>        
+                CS_REC<CS_ADDR> = DATAFIELDS<2>         
+                CS_REC<CS_ADDR2> = DATAFIELDS<3>        
+                CS_REC<CS_CITY> = DATAFIELDS<4>         
+                CS_REC<CS_STATE> = DATAFIELDS<5>        
+                CS_REC<CS_ZIP> = DATAFIELDS<6>          
+                CS_REC<CS_COUNTRY> = DATAFIELDS<7>      
+                CS_REC<CS_STATUS> = "A"       
+                CS_REC<CS_PHONE> = DATAFIELDS<11>
+                CS_REC<CS_FAX> = DATAFIELDS<12>
+                *
+                WRITE CS_REC ON CS_FILE, CS_ID
+                
+            NEXT I
+        END ELSE
+            CRT 'CANNOT READ customer_records.csv FROM BP'
+            STOP
+        END
+    END ELSE
+        CRT 'CANNOT OPEN BP'
+        STOP
+    END
+    
+    CLOSE PYGUI_FILE
+    CLOSE CM_FILE
+    CLOSE CS_FILE
+*
+* now the dictionary
+*
+    dicts = ''
+    dicts<-1> = 'CM_NAME,D,1,,CUSTOMER NAME,25T,S'
+    dicts<-1> = 'CM_ADDR,D,2,,ADDRESS,25T,S'
+    dicts<-1> = 'CM_ADDR2,D,3,,ADDRESS 2,25T,S'
+    dicts<-1> = 'CM_CITY,D,4,,CITY,25T,S'
+    dicts<-1> = 'CM_STATE,D,5,,STATE,2T,S'
+    dicts<-1> = 'CM_ZIP,D,6,,ZIP,10T,S'    
+    dicts<-1> = 'CM_COUNTRY,D,7,,COUNTRY,10T,S'
+    dicts<-1> = 'CM_STATUS,D,8,,STATUS,5T,S'
+    dicts<-1> = 'CM_AR_LIMIT,D,9,MD4,CREDIT LIMIT,10R2,S'
+    dicts<-1> = 'CM_TERMS,D,10,,CREDIT TERMS,5T,S'
+    dicts<-1> = 'CM_PHONE,D,11,,PHONE,25T,S'
+    dicts<-1> = 'CM_FAX,D,12,,FAX,25T,S'
+    dicts<-1> = 'CM_WEB,D,13,,WEBSITE,25T,S'
+    dicts<-1> = 'CM_CONTACT,D,14,,CONTACT NAME,25T,M'
+    dicts<-1> = 'CM_CONTACT_PHONE,D,15,,CONTACT PHONE,10T,M'
+    dicts<-1> = 'CM_CONTACT_EMAIL,D,16,,CONTACT EMAIL,25T,M'
+    dicts<-1> = 'CM_DFLT_SHIP_ID,D,17,,DEFAULT SHIPTO,25T,S'
+*
+    dicts<-1> = '@ID,D,0,,ID,10L,S'
+    dicts<-1> = 'CM_ID,D,0,,CUST ID,10L,S'
+    
+    OPEN "DICT", "CUSTOMERS" TO CM_DICT ELSE
+        CRT 'CANNOT OPEN CUSTOMER DICTIONARY'
+        STOP
+    END 
+    REC_CNT = DCOUNT(DICTS,@FM)
+    FOR I = 1 TO REC_CNT
+        REC = DICTS<I>
+        DATAFIELDS = CSVDQ(REC)
+        ID = DATAFIELDS<1>
+        DICT_REC = ''
+        DICT_REC<1> = DATAFIELDS<2>
+        DICT_REC<2> = DATAFIELDS<3>
+        DICT_REC<3> = DATAFIELDS<4>
+        DICT_REC<4> = DATAFIELDS<5>
+        DICT_REC<5> = DATAFIELDS<6>
+        DICT_REC<6> = DATAFIELDS<7>
+        WRITE DICT_REC ON CM_DICT, ID
+    NEXT I
+    CLOSE CM_DICT
+    
+    dicts = ''
+    dicts<-1> = 'CS_NAME,D,1,,CUSTOMER NAME,25T,S'
+    dicts<-1> = 'CS_ADDR,D,2,,ADDRESS,25T,S'
+    dicts<-1> = 'CS_ADDR2,D,3,,ADDRESS 2,25T,S'
+    dicts<-1> = 'CS_CITY,D,4,,CITY,25T,S'
+    dicts<-1> = 'CS_STATE,D,5,,STATE,2T,S'
+    dicts<-1> = 'CS_ZIP,D,6,,ZIP,10T,S'    
+    dicts<-1> = 'CS_COUNTRY,D,7,,COUNTRY,10T,S'
+    dicts<-1> = 'CS_STATUS,D,8,,STATUS,5T,S'
+    dicts<-1> = 'CS_PHONE,D,9,,PHONE,25T,S'
+    dicts<-1> = 'CS_FAX,D,10,,FAX,25T,S'
+
+*
+    dicts<-1> = '@ID,D,0,,ID,10L,S'
+    dicts<-1> = 'CS_ID,D,0,,SHIPTO ID,10L,S'
+    
+    OPEN "DICT", "SHIP_TO" TO CS_DICT ELSE
+        CRT 'CANNOT OPEN SHIP_TO DICTIONARY'
+        STOP
+    END 
+    REC_CNT = DCOUNT(DICTS,@FM)
+    FOR I = 1 TO REC_CNT
+        REC = DICTS<I>
+        DATAFIELDS = CSVDQ(REC)
+        ID = DATAFIELDS<1>
+        DICT_REC = ''
+        DICT_REC<1> = DATAFIELDS<2>
+        DICT_REC<2> = DATAFIELDS<3>
+        DICT_REC<3> = DATAFIELDS<4>
+        DICT_REC<4> = DATAFIELDS<5>
+        DICT_REC<5> = DATAFIELDS<6>
+        DICT_REC<6> = DATAFIELDS<7>
+        WRITE DICT_REC ON CS_DICT, ID
+    NEXT I
+    CLOSE CS_DICT
+
+END
+END

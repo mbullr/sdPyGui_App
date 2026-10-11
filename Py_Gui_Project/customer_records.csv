@@ -1,0 +1,51 @@
+CM_NAME,CM_ADDR,CM_ADDR2,CM_CITY,CM_STATE,CM_ZIP,CM_COUNTRY,CM_STATUS,CM_AR_LIMIT,CM_TERMS,CM_PHONE,CM_FAX,CM_WEB,CM_CONTACT,CM_CONTACT_PHONE,CM_CONTACT_EMAIL
+Acme Corporation,9856 Pine Rd,,Seattle,WA,98101,USA,A,182000,2/10 Net 30,206-555-8126,206-555-5374,www.acmecorporation.com,James Garcia,206-555-3839,jgarcia@acmecorporation.com
+Apex Global Industries,2193 Factory Ln,,Chicago,IL,60601,USA,A,143000,Net 45,312-555-9271,312-555-8880,www.apexglobalindustries.com,Richard Doe,312-555-3606,rdoe@apexglobalindustries.com
+Beacon Logistics,1791 Market St,Suite 102,Denver,CO,80202,USA,A,236000,Net 60,303-555-3307,303-555-7228,www.beaconlogistics.com,Jessica Johnson,303-555-4098,jjohnson@beaconlogistics.com
+Caliber Manufacturing,7860 Oak Ave,,Detroit,MI,48201,USA,A,204000,Due on Receipt,313-555-6268,313-555-2470,www.calibermanufacturing.com,Barbara Williams,313-555-1989,bwilliams@calibermanufacturing.com
+Delta Tech Solutions,9305 Innovation Way,Floor 3,Boston,MA,2108,USA,A,239000,Net 60,617-555-5459,,www.deltatechsolutions.com,Thomas Jenkins,617-555-9056,tjenkins@deltatechsolutions.com
+Echo Valley Trading,7972 Industrial Way,,Dallas,TX,75201,USA,I,135000,2/10 Net 30,214-555-6822,214-555-2218,www.echovalleytrading.com,John Doe,214-555-2833,jdoe@echovalleytrading.com
+Foxglove Retail,4745 Innovation Way,,Miami,FL,33101,USA,A,85000,2/10 Net 30,305-555-2976,,www.foxgloveretail.com,Linda Rodriguez,305-555-1566,lrodriguez@foxgloveretail.com
+Genesis Health,6028 Supply Chain Blvd,Suite 500,Dallas,TX,75201,USA,HS,104000,2/10 Net 30,214-555-7896,214-555-9991,www.genesishealth.com,James Martinez,214-555-3942,jmartinez@genesishealth.com
+Horizon Holdings,2813 Broadway,,Detroit,MI,48201,USA,A,200000,2/10 Net 30,313-555-3068,313-555-6867,www.horizonholdings.com,Sarah Lee,313-555-4555,slee@horizonholdings.com
+Infinity Aerospace,8639 Supply Chain Blvd,,Chicago,IL,60601,USA,HB,115000,2/10 Net 30,312-555-7811,312-555-1014,www.infinityaerospace.com,Thomas Mendez,312-555-4108,tmendez@infinityaerospace.com
+Javelin Security,2105 Innovation Way,,Phoenix,AZ,85001,USA,A,95000,Net 60,602-555-3732,602-555-1590,www.javelinsecurity.com,Linda Lee,602-555-5256,llee@javelinsecurity.com
+Keystone Construction,5243 Pine Rd,,Seattle,WA,98101,USA,A,185000,2/10 Net 30,206-555-8245,206-555-6646,www.keystoneconstruction.com,Linda Miller,206-555-5858,lmiller@keystoneconstruction.com
+Liberty Energy,5461 Pine Rd,Dock 4,Phoenix,AZ,85001,USA,A,62000,2/10 Net 30,602-555-5602,602-555-9957,www.libertyenergy.com,Barbara Hernandez,602-555-9372,bhernandez@libertyenergy.com
+Matrix Media,1889 Enterprise Dr,,Austin,TX,78701,USA,A,68000,Net 30,512-555-5114,512-555-2686,www.matrixmedia.com,Emily Garcia,512-555-8785,egarcia@matrixmedia.com
+Nova Consulting,3460 Enterprise Dr,,Los Angeles,CA,90001,USA,A,165000,Net 45,213-555-2900,213-555-2911,www.novaconsulting.com,Jessica Jenkins,213-555-3523,jjenkins@novaconsulting.com
+Omega Logistics,8902 Industrial Way,Floor 3,Denver,CO,80202,USA,A,44000,Due on Receipt,303-555-8014,,www.omegalogistics.com,Carlos Brown,303-555-6626,cbrown@omegalogistics.com
+Pinnacle Foods,1492 Oak Ave,,Phoenix,AZ,85001,USA,A,44000,Due on Receipt,602-555-5850,,www.pinnaclefoods.com,David Jones,602-555-8952,djones@pinnaclefoods.com
+Quantum Ventures,4668 Innovation Way,,Miami,FL,33101,USA,A,244000,Due on Receipt,305-555-9568,305-555-7368,www.quantumventures.com,William Williams,305-555-1369,wwilliams@quantumventures.com
+Radiant Apparel,7009 Main St,,Phoenix,AZ,85001,USA,A,21000,Net 60,602-555-9363,602-555-6382,www.radiantapparel.com,Jessica Rodriguez,602-555-9454,jrodriguez@radiantapparel.com
+Summit Materials,9016 Main St,,Chicago,IL,60601,USA,A,12000,Net 45,312-555-9410,312-555-2861,www.summitmaterials.com,Thomas Brown,312-555-4410,tbrown@summitmaterials.com
+Titan Automotive,8336 Innovation Way,,Detroit,MI,48201,USA,A,247000,Net 30,313-555-5518,,www.titanautomotive.com,Barbara Johnson,313-555-5606,bjohnson@titanautomotive.com
+United Packaging,5071 Broadway,Dock 4,Miami,FL,33101,USA,A,33000,2/10 Net 30,305-555-1014,305-555-8714,www.unitedpackaging.com,Sarah Lee,305-555-4758,slee@unitedpackaging.com
+Vanguard Electronics,6866 Innovation Way,Dock 4,Dallas,TX,75201,USA,A,144000,Net 30,214-555-3851,,www.vanguardelectronics.com,Emily Jenkins,214-555-2964,ejenkins@vanguardelectronics.com
+Western Distribution,1842 Oak Ave,,Atlanta,GA,30303,USA,A,229000,Net 30,404-555-9828,404-555-7530,www.westerndistribution.com,Joseph Garcia,404-555-4434,jgarcia@westerndistribution.com
+Xenon Pharma,938 Broadway,,Atlanta,GA,30303,USA,A,10000,2/10 Net 30,404-555-8977,,www.xenonpharma.com,Robert Johnson,404-555-6141,rjohnson@xenonpharma.com
+Zenith Capital,1794 Industrial Way,Suite 102,Phoenix,AZ,85001,USA,A,99000,Due on Receipt,602-555-9029,602-555-9051,www.zenithcapital.com,Robert Mendez,602-555-4910,rmendez@zenithcapital.com
+Alliance Freight,1357 Factory Ln,,Chicago,IL,60601,USA,A,212000,Net 30,312-555-5460,312-555-1455,www.alliancefreight.com,Sarah Martinez,312-555-8846,smartinez@alliancefreight.com
+BlueSky Hospitality,8515 Broadway,,San Jose,CA,95110,USA,A,184000,Net 60,408-555-4168,408-555-7173,www.blueskyhospitality.com,John Rodriguez,408-555-6711,jrodriguez@blueskyhospitality.com
+Compass Agriculture,8807 Innovation Way,,Los Angeles,CA,90001,USA,A,116000,2/10 Net 30,213-555-4128,,www.compassagriculture.com,Linda Williams,213-555-7308,lwilliams@compassagriculture.com
+Dynamic Textiles,5012 Industrial Way,Suite 102,Boston,MA,2108,USA,A,141000,Net 45,617-555-8223,617-555-3451,www.dynamictextiles.com,Susan Jones,617-555-7832,sjones@dynamictextiles.com
+Ember Software,606 Enterprise Dr,,Austin,TX,78701,USA,A,38000,Net 45,512-555-2378,,www.embersoftware.com,William Mendez,512-555-4613,wmendez@embersoftware.com
+Fortress Storage,6917 Industrial Way,Suite 102,Miami,FL,33101,USA,A,132000,Net 60,305-555-5833,,www.fortressstorage.com,Joseph Brown,305-555-5627,jbrown@fortressstorage.com
+GoldCoast Seafood,4734 Supply Chain Blvd,,New York,NY,10001,USA,A,216000,Net 45,212-555-2063,212-555-6336,www.goldcoastseafood.com,William Davis,212-555-4684,wdavis@goldcoastseafood.com
+Hyperion Plastics,2462 Oak Ave,,Detroit,MI,48201,USA,A,177000,Net 60,313-555-9722,313-555-5805,www.hyperionplastics.com,Emily Johnson,313-555-8205,ejohnson@hyperionplastics.com
+IronClad Tools,5108 Enterprise Dr,,Austin,TX,78701,USA,A,30000,2/10 Net 30,512-555-5945,,www.ironcladtools.com,Joseph Martinez,512-555-8778,jmartinez@ironcladtools.com
+Jupiter Creative,4098 Innovation Way,,Detroit,MI,48201,USA,A,10000,Net 60,313-555-3403,313-555-3016,www.jupitercreative.com,David Garcia,313-555-6119,dgarcia@jupitercreative.com
+Kodiak Outfitter,7265 Market St,,San Jose,CA,95110,USA,A,149000,Net 30,408-555-5646,,www.kodiakoutfitter.com,David Lopez,408-555-9091,dlopez@kodiakoutfitter.com
+LevelUp Gaming,4396 Industrial Way,,Miami,FL,33101,USA,A,28000,Net 60,305-555-3356,,www.levelupgaming.com,Jane Jenkins,305-555-6799,jjenkins@levelupgaming.com
+Meridian Maritime,8146 Pine Rd,Building B,Seattle,WA,98101,USA,A,199000,Net 45,206-555-2122,,www.meridianmaritime.com,Michael Williams,206-555-3340,mwilliams@meridianmaritime.com
+NorthStar Chemicals,706 Supply Chain Blvd,,Dallas,TX,75201,USA,A,246000,Net 30,214-555-7072,214-555-8674,www.northstarchemicals.com,Barbara Lee,214-555-7090,blee@northstarchemicals.com
+Omni Insurance,3921 Factory Ln,Floor 3,Boston,MA,2108,USA,A,242000,Net 45,617-555-2953,,www.omniinsurance.com,James Lopez,617-555-8714,jlopez@omniinsurance.com
+Pacific Lumber,301 Supply Chain Blvd,Suite 102,Columbus,OH,43215,USA,A,52000,Due on Receipt,614-555-1143,,www.pacificlumber.com,Carlos Lopez,614-555-4084,clopez@pacificlumber.com
+Quarry Mining,9035 Broadway,,Boston,MA,2108,USA,A,171000,Due on Receipt,617-555-5147,617-555-9885,www.quarrymining.com,Jessica Jenkins,617-555-4844,jjenkins@quarrymining.com
+Redwood Furniture,3509 Industrial Way,Floor 3,Seattle,WA,98101,USA,A,147000,Net 45,206-555-7594,206-555-6238,www.redwoodfurniture.com,Robert Davis,206-555-2351,rdavis@redwoodfurniture.com
+Sterling Diagnostics,5891 Supply Chain Blvd,,Austin,TX,78701,USA,A,157000,Due on Receipt,512-555-9454,512-555-5852,www.sterlingdiagnostics.com,Jessica Miller,512-555-6346,jmiller@sterlingdiagnostics.com
+Trident Marine,4501 Industrial Way,,San Jose,CA,95110,USA,A,16000,Net 30,408-555-8767,408-555-5112,www.tridentmarine.com,Susan Lee,408-555-1106,slee@tridentmarine.com
+Urban Develop,2296 Main St,,Chicago,IL,60601,USA,A,73000,Net 45,312-555-9120,312-555-7214,www.urbandevelop.com,James Johnson,312-555-3465,jjohnson@urbandevelop.com
+Velocity Robotics,6423 Industrial Way,Building B,Seattle,WA,98101,USA,A,107000,Net 30,206-555-9491,206-555-8306,www.velocityrobotics.com,Carlos Martinez,206-555-1113,cmartinez@velocityrobotics.com
+Wildwood Paper,9017 Factory Ln,,Miami,FL,33101,USA,A,249000,2/10 Net 30,305-555-3250,305-555-7644,www.wildwoodpaper.com,Emily Rodriguez,305-555-7535,erodriguez@wildwoodpaper.com
+Zephyr Aviation,5598 Main St,,Atlanta,GA,30303,USA,A,151000,Net 45,404-555-1246,,www.zephyraviation.com,David Martinez,404-555-9004,dmartinez@zephyraviation.com
