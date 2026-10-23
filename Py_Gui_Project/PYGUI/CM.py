@@ -7,6 +7,34 @@
 # Because we are running embedded within the sd app and it is possible the sd process could be alive for long periods of
 #  time, we should clean up (set to None) any objects created either within the _setup.py or _step.py script.
 # Also at some point the sd Python function PY_PYGUISTEP()  (sd_py_gui_step in sdext_py.c) should be passed the name of #  the function defined in the _step.py script (in this example gui_step).  Currently it is hardcoded.
+#**************************************************************************
+# This is free and unencumbered software released into the public domain.
+#
+# Anyone is free to copy, modify, publish, use, compile, sell, or
+# distribute this software, either in source code form or as a compiled
+# binary, for any purpose, commercial or non-commercial, and by any
+# means.
+#
+# In jurisdictions that recognize copyright laws, the author or authors
+# of this software dedicate any and all copyright interest in the
+# software to the public domain. We make this dedication for the benefit
+# of the public at large and to the detriment of our heirs and
+# successors. We intend this dedication to be an overt act of
+# relinquishment in perpetuity of all present and future rights to this
+# software under copyright law.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# For more information, please refer to <https://unlicense.org>
+#*************************************************************************
+
+
 import FreeSimpleGUI as sg
 # import json
 # rem the sd module is an extension module defined in sdext_py.c created by the sd VM using the python c api 
@@ -22,6 +50,15 @@ _gui_closed = False
 _close_event_sent = False
 values = {} 
 PUP_window = None
+# need this known global object to load dropdown lists
+MY_CM_LIST = []
+MY_CS_LIST = []
+CM_STAT_LIST = ['A : Active', 'I : Inactive', 'HS : Hold Shipment', 'HB : Hold Bookings']
+CM_TERMS_LIST = ['2/10 Net 30', 'Net 10', 'Net 30', 'Net 45', 'Net 60', 'COD']
+# and our table loader lists
+#COL_LIST = []
+#ROW_LIST = []
+CUST_CONTACTS = []
 
 # function to define our popup (cannot use freesimplegui standard pop up (they will be blocking)
 # todo add buttons to calling params
@@ -37,29 +74,31 @@ def my_popup(my_title, my_message):
 
 def app_window():
   Frame1_layout = [
-  [sg.Text(text='Customer Id',size=(11,1)),sg.Combo("", key='CM_LIST', size=(11,1), readonly=True), sg.Button(button_text='Get',size=(5,1))],
+  [sg.Text(text='Customer Id',size=(11,1)),sg.Combo("", key='CM_LIST', size=(11,1)), sg.Button(button_text='Get',size=(5,1))],
   [sg.Button(button_text='New',size=(5,1))],
   [sg.Text(text='Name',size=(9,1)),sg.Input(size=(29,1),key='CM_NAME')],
   [sg.Text(text='Addr1',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR')],
   [sg.Text(text='Addr2',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR2')],
-  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CM_CITY'),sg.Listbox(size=(8,1),key='CM_STATE',values='')],
+  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CM_CITY'),sg.Combo(size=(8,1),key='CM_STATE',values='')],
   [sg.Text(text='Zip, Co',size=(9,1)),sg.Input(size=(13,1),key='CM_ZIP'),sg.Input(size=(16,1),key='CM_COUNTRY')],
-  [sg.Text(text='AR Limit',size=(9,1)),sg.Input(size=(11,1),key='CM_AR_LIMIT'),sg.Text(text='Terms',size=(5,1)),sg.Listbox(size=(11,1),key='CM_TERMS',values='')],
+  [sg.Text(text='AR Limit',size=(9,1)),sg.Input(size=(11,1),key='CM_AR_LIMIT'),sg.Text(text='Terms',size=(5,1)),sg.Combo(size=(11,1),key='CM_TERMS',values=CM_TERMS_LIST)],
   [sg.Text(text='Phone',size=(9,1)),sg.Input(size=(12,1),key='CM_PHONE'),sg.Text(text='Fax',size=(5,1)),sg.Input(size=(12,1),key='CM_FAX')],
-  [sg.Text(text='Web Site',size=(8,1)),sg.Input(size=(19,1),key='CM_WEB'),sg.Text(text='Status',size=(5,1)),sg.Listbox(size=(11,1),key='CM_STATUS',values='')],
-  [sg.Text(text='Rep',size=(8,1)),sg.Input(size=(19,1),key='CM_REP'),sg.Button(button_text='Create ShipTo',size=(7,2))] 
+  [sg.Text(text='Web Site',size=(8,1)),sg.Input(size=(19,1),key='CM_WEB'),sg.Text(text='Status',size=(6,1)),sg.Combo(size=(11,1),key='CM_STATUS',values=CM_STAT_LIST)],
+  [sg.Text(text='Rep',size=(8,1)),sg.Input(size=(19,1),key='CM_REP'),sg.Text(text='ShipTo',size=(6,1)),sg.Text(text='      ',size=(11,1), key = 'CM_DFLT_SHIP_ID') ],
+  [sg.Button(button_text='Create ShipTo',size=(7,2), disabled=True)]  
   ] 
   
   frmShipTo_layout = [
+  [sg.Text(text='Ship To Id',size=(11,1)),sg.Combo("", key='CS_LIST', size=(11,1)), sg.Button(button_text='Get ShipTo',size=(10,1))],
+  [sg.Button(button_text='New Ship To',size=(11,1))],
   [sg.Text(text='Name',size=(5,1)),sg.Input(size=(30,1),key='CS_NAME')],
   [sg.Text(text='Addr1',size=(5,1)),sg.Input(size=(30,1),key='CS_ADDR')],
   [sg.Text(text='Addr2',size=(5,1)),sg.Input(size=(30,1),key='CS_ADDR2')],
-  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CS_CITY'),sg.Listbox(size=(8,1),key='CS_STATE',values='')],
+  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CS_CITY'),sg.Combo(size=(8,1),key='CS_STATE',values='')],
   [sg.Text(text='Zip, Co',size=(9,1)),sg.Input(size=(12,1),key='CS_ZIP'),sg.Input(size=(15,1),key='CS_COUNTRY')],
   [sg.Text(text='Phone',size=(9,1)),sg.Input(size=(12,1),key='CS_PHONE'),sg.Text(text='Fax',size=(3,1)),sg.Input(size=(12,1),key='CS_FAX')],
-  [sg.Text(text='Status',size=(5,1)),sg.Listbox(size=(11,1),key='CS_STATUS',values='')],
-  [sg.Checkbox(text='Default Ship To',size=(12,2),key='chkDefault')],
-  [sg.Button(button_text='Delete ShipTo',size=(8,2))] 
+  [sg.Text(text='Status',size=(5,1)),sg.Combo(size=(11,1),key='CS_STATUS',values='')],
+  [sg.Button(button_text='Set As Default',size=(12,2))]
   ]
   
   CM_layout = [
