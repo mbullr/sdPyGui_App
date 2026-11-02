@@ -66,8 +66,14 @@ equate CS_FAX           to    10
 * DOES OUR TEST FILE EXIST?
 *
 OPEN "CUSTOMERS" TO CM_FILE THEN
-    CRT 'CUSTOMERS ALREADY EXISTS'
-END ELSE
+    CRT 'WARNING CUSTOMERS ALREADY EXISTS, OVERWRITE (Y/N)':
+    INPUT OK
+    IF UPCASE(OK) <> 'Y' THEN 
+      CRT 'ABORT'
+      STOP
+    END
+    
+END 
 *
 * NOPE, CREATE IT
 *
@@ -192,6 +198,7 @@ END ELSE
         WRITE DICT_REC ON CM_DICT, ID
     NEXT I
     CLOSE CM_DICT
+    execute "compile.dict CUSTOMERS"
     
     dicts = ''
     dicts<-1> = 'CS_NAME,D,1,,CUSTOMER NAME,25T,S'
@@ -208,7 +215,7 @@ END ELSE
 *
     dicts<-1> = '@ID,D,0,,ID,10L,S'
     dicts<-1> = 'CS_ID,D,0,,SHIPTO ID,10L,S'
-    dicts<-1> = 'CS_CM_ID,I,@ID[".",1,1],,CM ID,10L,S'
+    dicts<-1> = 'CS_CM_ID,I,"@ID[""."",1,1]",,CM ID,10L,S'
     
     OPEN "DICT", "SHIP_TO" TO CS_DICT ELSE
         CRT 'CANNOT OPEN SHIP_TO DICTIONARY'
@@ -229,6 +236,7 @@ END ELSE
         WRITE DICT_REC ON CS_DICT, ID
     NEXT I
     CLOSE CS_DICT
+    execute "compile.dict SHIP_TO"
 
-END
+
 END

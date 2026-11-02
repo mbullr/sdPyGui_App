@@ -2,9 +2,14 @@
 * Customer App
 * Sample app for PyGui testing on sd
 * This is as much a sample as a debug tool (to test out PYGUI) so do not expect a full blown app here!
+*
 * Because we are running embedded within the sd app and it is possible the sd process could be alive for long periods of
 *  time, we should clean up (set to None) any objects created either within the _setup.py or _step.py script.
-* Also at some point the sd Python function PY_PYGUISTEP()  (sd_py_gui_step in sdext_py.c) should be passed the name of #  *   the function defined in the _step.py script (in this example gui_step).  Currently it is hardcoded. 
+* Also at some point the sd Python function PY_PYGUISTEP()  (sd_py_gui_step in sdext_py.c) should be passed the name of
+*   the function defined in the _step.py script (in this example gui_step).  Currently it is hardcoded. 
+*
+* Suggested reading: SD GUI Python Cooperative Schedule.txt in the Documentation folder
+*
 **************************************************************************
 * This is free and unencumbered software released into the public domain.
 *
@@ -39,7 +44,7 @@ lf = char(10)   ;* line feed character
 DEFFUN values_load(val_window,val_obj_key,val_list_name,dyn_list) LOCAL
 
 * These should be generated using the sd GENERATE command. For now we are doing this manually
-* Also may want to modify GENERATE for create the xx_DICT dyn arrays
+* Also may want to modify GENERATE for create the xx_DICT and xx_KEY dyn arrays
 
 equate CM_NAME to 1
 equate CM_ADDR          to    2
@@ -72,7 +77,13 @@ equate CS_PHONE         to    9
 equate CS_FAX           to    10
 equate CS_SIZE to    10
 
-
+*
+* It is very important that the KEY and DICT arrays are sized the same (one entry for each record's data field)
+* And that the ordering matches the field position within the data record.
+* Again, this is something the GENERATE command could do for us!
+*
+* CUSTOMER record
+* 
 CM_KEY_NAME = ''
 CM_KEY_NAME<CM_NAME> = "CM_NAME"
 CM_KEY_NAME<CM_ADDR> = "CM_ADDR"
@@ -91,9 +102,12 @@ CM_KEY_NAME<CM_WEB> = "CM_WEB"
 * the following tells the code that these data items will be loaded into a table
 * number at vm pos 3 tells us the col position within a row
 *
-CM_KEY_NAME<CM_CONTACT> = "CM_CONTACT":@VM:"table":1
-CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:"table":2
-CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:"table":3
+* rem we treat all mv flds as tables, a mv field not associated with other fields would just be a table with 1 column of data
+*
+*                                 key         table#  Col#
+CM_KEY_NAME<CM_CONTACT> =       "CM_CONTACT":@VM:1:@VM:1
+CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:1:@VM:2
+CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:1:@VM:3
 CM_KEY_NAME<CM_DFLT_SHIP_ID> = "CM_DFLT_SHIP_ID" 
 
 CM_DICT_NAME = ''
@@ -115,6 +129,8 @@ CM_DICT_NAME<CM_CONTACT_PHONE> = "CM_CONTACT_PHONE"
 CM_DICT_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT_EMAIL"
 CM_DICT_NAME<CM_DFLT_SHIP_ID> = "CM_DFLT_SHIP_ID" 
 
+* SHIP_TO records
+*
 CS_KEY_NAME = ''
 CS_KEY_NAME<CS_NAME> = "CS_NAME"
 CS_KEY_NAME<CS_ADDR> = "CS_ADDR"
@@ -143,7 +159,7 @@ CS_DICT_NAME<CS_FAX> = "CS_FAX"
 
 
 * rem to point these to where you save the python scripts
-SETUP.FILE = "/home/sd/user_accounts/mabull/PYGUI/CM.py"
+SETUP.FILE = @PATH:"/PYGUI/CM.py"
 openseq SETUP.FILE to SETUP.F else 
   crt 'Cannot open setup file: ':SETUP.FILE
   stop
@@ -166,6 +182,10 @@ equate GLOBAL_DICT_SZ to 50
 dim global_dict_array(GLOBAL_DICT_SZ)
 DIM CM_DICT(CM_SIZE)
 DIM CS_DICT(CS_SIZE)
+#define MAX_TABLES    5
+DIM TABLES(MAX_TABLES)             ;* at some point we need to figure how to automate dim size
+
+* open data files
 GOSUB pop_dict("CUSTOMERS",CM_DICT_NAME)
 * rem cannot pass matrix in local sub
 for i = 1 to CM_SIZE
@@ -190,9 +210,16 @@ if STATUS() # 0 then
     crt "Python initialization failed: ":STATUS()
     stop
 end
-
-CRT "Setup Gui Window"
-
+*
+crt "loading common functions module sdgui_functions.py"
+FUNC.FILE = @PATH:"/PYGUI/sdgui_functions.py"
+STATUS.VALUE = PY_RUNFILE(FUNC.FILE)
+if STATUS() # 0 then
+    crt "PYGui functions load failed: ":STATUS()
+    goto SHUTDOWN
+end
+*
+crt "Setup Gui Window"
 STATUS.VALUE = PY_RUNFILE(SETUP.FILE)
 if STATUS() # 0 then
     crt "PYGui setup failed: ":STATUS()
@@ -233,13 +260,25 @@ SAVE.REQUIRED = @FALSE     ;* has there been a change to the existing record?
 CRT "Run the gui loop"
 DONE = 0
 *
+* The all important scheduler loop, rem sd "controls" execution of the python gui script
+*  The VM owns the main execution loop
+*  The SD runtime polls I/O through PY_PYPOLL()
+
+
 loop while DONE = 0
+
+
+*
+*   give the gui some execution time (we execute one pass of function gui_step defined in our python setup script)
 *
     STATUS.VALUE = PY_PYGUISTEP()
     if STATUS() # 0 then
         crt "PyGUI step failed: ":STATUS()
         DONE = 1
     END ELSE
+*
+*       now poll to see if the gui scheduled an event to process
+*    
         EVENT = PY_PYPOLL()
         if STATUS() = 0 then
             EVENT.NAME = FIELD(EVENT,@FM, 1)
@@ -253,15 +292,20 @@ loop while DONE = 0
                 DONE = 1
                 exit      ;* get out of loop
             end
-              
-            if EVENT.NAME = "Get" then
-                gosub GET.CM
+            
+            begin case            
+            case  EVENT.NAME = "Get" 
+                gosub Get.CM
+            
+            case EVENT.NAME = "File" 
+                gosub File.CM
 
                 
-            end else  ;* unknown event
+            case 1 ;* unknown event
                 MSG = 'Status: EVENT - ': EVENT.NAME : ' Not Implemented!'
                 result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-            end
+            end case
+            
         end     ;* poll failed, try again?
     end
 repeat
@@ -275,8 +319,8 @@ crt "sd CM.BP app ended: ":STATUS.VALUE
 * populated dictionary records for passed file
 * pop_fn - file to reference
 * pop_dict_name - dyn array of dictionary names
-* note: because we cannot pass matrixes in a local sub we use 
-*
+* note: because we cannot dynamically resize arrays passed in a local sub we use global variables arrays
+*  global_dict_array
 local subroutine pop_dict(pop_fn, pop_dict_name)
 
     open "DICT", pop_fn to dict_f then
@@ -318,20 +362,93 @@ local subroutine CM_LIST_LOAD
 CALL GUI.SEARCH2 ("CUSTOMERS","","","CM_NAME":@FM:"":@FM:'WITH CM_STATUS = "A"',"CM_NAME",1000,1,CM_LIST,CM_LIST_IDX,CM_LIST_CT,"TRIM",EMSG)
 
 * now populate our lists
-
+*
 * load values into drop down list with key 'CM_LIST'
+*
 rtn_stat = values_load("main_window",'CM_LIST','MY_CM_LIST',CM_LIST)
 if rtn_stat # 0 then
     crt "Customer List Load failed: ":STATUS()
 end
 return
 end
+******************************************************************************************************
+* File.CM
+* Save the CM Record along 
+* Pull data back from GUI
+* Validate
+* Write the records
+* Refresh the GUI ??
+******************************************************************************************************
+local subroutine File.CM
+* grab the values from the GUI
+*
+* use function readwindow to create a dyn array of keys and values
+* screen_data<1> = keys in vm list
+* screen_data<2> = values in vm list,
+* note table date will be of the forme
+* row 1 col1 @tm col2 @tm col3 @svm
+* row 2 col1 @tm col2 @tm col3 @svm
+* and so on
+* 
+* use function readwindow to get keys and values into string "screen_data"
+rtn_stat = PY_CALLFUNCTION("readwindow","screen_data","main_window")
+
+if rtn_stat = 0 then
+* now get the string readwindow created
+  window_data = PY_STRGET("screen_data")
+  
+  look at how the data was sent to the GUI,
+  possible lodgic:
+  for loop based on rec sz (# of fld)
+    xx_KEY_NAME dyn array tells us if a key's value is MV
+    tells us how key's value is mapped to mv record
+      for each table nbr
+        build column position to mv record fld mapped
+        process mv record population of table data
+        (
+  
+  
+  keyct = dcount(window_data<1>, @vm)
+  valcnt = dcount(window_data<2>, @vm)
+  crt 'counts: ':keyct: ' ' :valcnt
+  crt 'keys / values: '
+  for i = 1 to keyct
+    crt window_data<1,i>:': ':
+    * test for table (@TM in data)
+    val = window_data<2,i>
+    if count(val,@TM)  then  ;* looks like table data
+      crt
+      rowct =  dcount(val,@svm) ;* row data separated by svm
+      for r = 1 to rowct
+        row = window_data<2,i,r>
+        cname = field(row,@TM,1)
+        cphone = field(row,@TM,2)
+        cemail = field(row,@TM,3)
+        crt cname: ' ': cphone : ' ' : cemail 
+      next r
+      crt
+      
+    end else
+      crt window_data<2,i>
+    end      
+  next i
+  
+end else
+  crt 'readwindow failed'
+end
+
+return
+end
+
+
+
+
 
 ******************************************************************************************************
 * get.cm
 * get cm record and populate window with values
-local subroutine get.cm
-    contacts_table = ''     ;* used for building customer table data
+local subroutine Get.CM
+    TABLES(1) = ''     ;* used for building customer table data
     if SAVE.REQUIRED then
         MSG = 'Status: Data not saved, Cancel current changes then Get new Customer!'
         result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
@@ -342,7 +459,14 @@ local subroutine get.cm
             MSG = 'Status: No Customer Id Found'
             result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
         end else
-            read CM_REC from CM_FILE, CM_ID then
+            * if we had a previous lock on a CUSTOMERS record, release it
+            release CM_FILE
+            readu CM_REC from CM_FILE, CM_ID locked
+                locked_by = status()
+                MSG = 'Status: ': CS_ID : 'Locked By User:' :locked_by :' Try later'
+                result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+                        
+            end then
                 CS_ID = CM_REC<CM_DFLT_SHIP_ID>
                 read CS_REC from CS_FILE, CS_ID else
                     MSG = 'Status: ': CS_ID : ' Not Found in SHIP_TO!'
@@ -352,22 +476,23 @@ local subroutine get.cm
                 key_list = ''
                 value_list = ''
                 for i = 1 to CM_SIZE
-                  * note: see line 94 CM_KEY_NAME<CM_CONTACT> = "CM_CONTACT":@VM:"table":1
-                  * are we going to define tables this way??
-                  *we need to check for mv data here, for now lets just get this working
+                  table_nbr = CM_KEY_NAME<i,2> + 0 
+                  * is this a data item that belongs in a table?
+                  if table_nbr > 0 then
+
+                  * yes (rem this means the field is multi value)
+                  if table_nbr > MAX_TABLES then
+                    CRT 'Resize Tables Array!'
+                    return 
+                  end
                   
-                  if upcase(CM_DICT(i)<7>) = "CM_CONTACTS" then
-                    * need to get fancier here, for now we know this is for the contacts table
-                    fld_name = upcase(CM_DICT_NAME<i,1>)
-                    crt 'assoc: ':CM_DICT(i)<7> :' fld: ':fld_name
-                    begin case
-                    case fld_name = 'CM_CONTACT' 
-                      fld_loc = 1
-                    case fld_name = 'CM_CONTACT_PHONE'
-                      fld_loc = 2
-                    case fld_name = 'CM_CONTACT_EMAIL'
-                      fld_loc = 3                    
-                    end case
+                    tbl_name = upcase(CM_KEY_NAME<i,1>)
+                    fld_loc = CM_KEY_NAME<i,3> + 0       ;* defines col position in table
+                    
+                  *CM_KEY_NAME<CM_CONTACT> =       "CM_CONTACT":@VM:1:@VM:1
+                  *CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:1:@VM:2
+                  *CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:1:@VM:3
+                  
                     data = CM_REC<i>
                     
                     vm_count = dcount(data,@VM)
@@ -378,7 +503,7 @@ local subroutine get.cm
                       end else
                         tdata = data<1,vmi>
                       end
-                      contacts_table<1,vmi,fld_loc> = tdata
+                      TABLES(table_nbr)<1,vmi,fld_loc> = tdata
                     next vmi
                   
                   end else                    
@@ -394,7 +519,7 @@ local subroutine get.cm
                 * and now the default ship to
                 for i = 1 to CS_SIZE
                   * note: 
-                  *we need to check for mv data here, for now lets just get this working
+                  * there are not tables in ship_to record so why is this here??
                   if upcase(CS_DICT(i)<6>) = "M" then
                     * multi value field and most likely added to table, skip for now
                     null    
@@ -413,10 +538,9 @@ local subroutine get.cm
                 SHIPTO_LIST = ''  
                 SHIPTO_LIST_IDX  = ''
                 SHIPTO_LIST_CT = 0
-                
-                *CALL GUI.SEARCH2 (F.NAME,USEARCH.FLD,USEARCH.STR,USORT,DISP.FLDS,MAX.LIST,START.LIST,LST.LNS,LST.IDX,LIST.CT,OPTIONS,EMSG)
-                
-                CALL GUI.SEARCH2 ("SHIP_TO","CS_CM_ID",'!':CM_ID,"CS_NAME","CS_ADDR,CS_CITY,CS_STATE",1000,1,SHIPTO_LIST,SHIPTO_LIST_IDX,SHIPTO_LIST_CT,"TRIM",EMSG)
+                *
+                * get the dropdown list for ship_to records for this customer                
+                 CALL GUI.SEARCH2 ("SHIP_TO","CS_CM_ID",'!':CM_ID,"CS_NAME","CS_ADDR,CS_CITY,CS_STATE",1000,1,SHIPTO_LIST,SHIPTO_LIST_IDX,SHIPTO_LIST_CT,"TRIM",EMSG)
                 * load values into drop down list with key 'CM_LIST'
                 *CRT 'shipto_list: ' : SHIPTO_LIST
                 rtn_stat = values_load("main_window",'CS_LIST','MY_CS_LIST',SHIPTO_LIST)
@@ -426,16 +550,21 @@ local subroutine get.cm
                   rtn_stat = PY_GUIWINUPDATES("main_window",key_list,value_list)
                   if rtn_stat = 0 then
                   * attempt to load the table data
-                    crt 'attempting to load CUST_CONTACTS'
-                    crt 'contacts_table: ':contacts_table
-                    crt '-------'
-                    need to clear the list prior to append - should this be part of PY_GUITABLESET ?? or an option to it?? 
-                    rtn_stat = PY_GUITABLESET("CUST_CONTACTS",contacts_table)
-                    crt 'rtn_stat = ': rtn_stat
-                    crt 'attempting to update table CM_CONTACT with list CUST_CONTACTS'
+                    rtn_stat = PY_LISTCLR("CUST_CONTACTS")
+                    rtn_stat1 = PY_GUITABLESET("CUST_CONTACTS",TABLES(1))
+                    rtn_stat2 = PY_GUIWINUPDVALUES("main_window","CM_CONTACT","CUST_CONTACTS")
+                    if rtn_stat + rtn_stat1 + rtn_stat2 <> 0 then
+                      MSG = 'Status: ': CM_ID :' Table Load Failed: ':rtn_stat:' ':rtn_stat1:' ':rtn_stat2
+                      result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+                    end else
+                        * take a snapshot of the current values on the screen
+                        * we use this to test for data change and save ("file") required
+                        rtn_stat = PY_CALLFUNCTION("snapshot","ValuesOnGet","main_window")
+
+                        *rtn_stat = PY_POPUP("create_popup", "PUP_window", "PUP_title", "Get CM Title", "PUP_message", "CM Loaded","PUP_style",PY_PUP_OK)
+
+                    end
                     
-                    rtn_stat = PY_GUIWINUPDVALUES("main_window","CM_CONTACT","CUST_CONTACTS")
-                    crt 'rtn_stat = ': rtn_stat
                   end else
                     * customer data load failed
                     MSG = 'Status: ': CM_ID :' Load Failed: ':rtn_stat

@@ -42,6 +42,7 @@ import FreeSimpleGUI as sg
 import sd
 
 
+
 SDME_FM  = chr(254)
 SDME_VM  = chr(253)
 SDME_SVM = chr(252)
@@ -49,26 +50,60 @@ SDME_SVM = chr(252)
 _gui_closed = False
 _close_event_sent = False
 values = {} 
-PUP_window = None
+
+
 # need this known global object to load dropdown lists
 MY_CM_LIST = []
 MY_CS_LIST = []
+STATES_LIST = [
+    "AK", "AL", "AR", "AZ", "CA", "CO", "CT", "DE", "FL", "GA", 
+    "HI", "IA", "ID", "IL", "IN", "KS", "KY", "LA", "MA", "MD", 
+    "ME", "MI", "MN", "MO", "MS", "MT", "NC", "ND", "NE", "NH", 
+    "NJ", "NM", "NV", "NY", "OH", "OK", "OR", "PA", "RI", "SC", 
+    "SD", "TN", "TX", "UT", "VA", "VT", "WA", "WI", "WV", "WY"
+]
 CM_STAT_LIST = ['A : Active', 'I : Inactive', 'HS : Hold Shipment', 'HB : Hold Bookings']
 CM_TERMS_LIST = ['2/10 Net 30', 'Net 10', 'Net 30', 'Net 45', 'Net 60', 'COD']
 # and our table loader lists
 #COL_LIST = []
 #ROW_LIST = []
 CUST_CONTACTS = []
+#
+# used to check for record changed
+ValuesOnGet = {}
+# used to read the GUI from the vm
+screen_data = ""
+
+
+PUP_window = None
+PUP_title = ""
+PUP_message = ""
+PUP_style = ""
+PUP_pending_event =  ""
+
+PY_PUP_OK = "PY_PUP_OK"
+PY_PUP_YESNO = "PY_PUP_YESNO"
+PY_PUP_OKCANCEL = "PY_PUP_OKCANCEL"
 
 # function to define our popup (cannot use freesimplegui standard pop up (they will be blocking)
-# todo add buttons to calling params
-def my_popup(my_title, my_message):
+# keys to button are always -OK- to proceed, -NO- to not proceed
+def create_popup(my_title, my_message,Style):
+    if Style == PY_PUP_OK:
+        btns = [sg.Button('OK', key='-OK-')]
+    elif Style == PY_PUP_YESNO:
+        btns = [sg.Button('Yes', key='-OK-'), sg.Button('No', key='-NO-')]
+    elif Style == PY_PUP_OKCANCEL:
+        btns = [sg.Button('OK', key='-OK-'), sg.Button('Cancel', key='-NO-')]
+    else:
+       btns = [sg.Button('Yes', key='-OK-'), sg.Button('No', key='-NO-')]
+       
     my_layout = [
                   [sg.Text(my_message)],
-                  [sg.Button('Yes', key='-YES-'), sg.Button('No', key='-NO-')]
+                   btns
                   ]
     return sg.Window(my_title, my_layout, location=(100, 200), modal=True, finalize=True)
     
+  
 #
 # function to define the main app window
 
@@ -79,7 +114,7 @@ def app_window():
   [sg.Text(text='Name',size=(9,1)),sg.Input(size=(29,1),key='CM_NAME')],
   [sg.Text(text='Addr1',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR')],
   [sg.Text(text='Addr2',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR2')],
-  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CM_CITY'),sg.Combo(size=(8,1),key='CM_STATE',values='')],
+  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CM_CITY'),sg.Combo(size=(8,1),key='CM_STATE',values=STATES_LIST)],
   [sg.Text(text='Zip, Co',size=(9,1)),sg.Input(size=(13,1),key='CM_ZIP'),sg.Input(size=(16,1),key='CM_COUNTRY')],
   [sg.Text(text='AR Limit',size=(9,1)),sg.Input(size=(11,1),key='CM_AR_LIMIT'),sg.Text(text='Terms',size=(5,1)),sg.Combo(size=(11,1),key='CM_TERMS',values=CM_TERMS_LIST)],
   [sg.Text(text='Phone',size=(9,1)),sg.Input(size=(12,1),key='CM_PHONE'),sg.Text(text='Fax',size=(5,1)),sg.Input(size=(12,1),key='CM_FAX')],
@@ -94,7 +129,7 @@ def app_window():
   [sg.Text(text='Name',size=(5,1)),sg.Input(size=(30,1),key='CS_NAME')],
   [sg.Text(text='Addr1',size=(5,1)),sg.Input(size=(30,1),key='CS_ADDR')],
   [sg.Text(text='Addr2',size=(5,1)),sg.Input(size=(30,1),key='CS_ADDR2')],
-  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CS_CITY'),sg.Combo(size=(8,1),key='CS_STATE',values='')],
+  [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CS_CITY'),sg.Combo(size=(8,1),key='CS_STATE',values=STATES_LIST)],
   [sg.Text(text='Zip, Co',size=(9,1)),sg.Input(size=(12,1),key='CS_ZIP'),sg.Input(size=(15,1),key='CS_COUNTRY')],
   [sg.Text(text='Phone',size=(9,1)),sg.Input(size=(12,1),key='CS_PHONE'),sg.Text(text='Fax',size=(3,1)),sg.Input(size=(12,1),key='CS_FAX')],
   [sg.Text(text='Status',size=(5,1)),sg.Combo(size=(11,1),key='CS_STATUS',values='')],
@@ -105,7 +140,7 @@ def app_window():
   [sg.Frame(size=(260,250),title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',size=(260,250),layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
   [],
   [sg.Text(text='Customer Contacts',size=(17,1))],
-  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue")],
+  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[20, 12, 30,10])],
   [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1)),sg.Button(button_text='Delete Customer',size=(8,2))],
   [sg.Text(text='Status:', key = '-STATUS-',size=(80,1))]
   ] 
@@ -118,7 +153,9 @@ def app_window():
 #   at some point we should make the function name a parameter, but not today......
 def gui_step(max_milliseconds=5):
     # note we must declare as global otherwise our sd functions will not find in global dict 
-    global _gui_closed, _close_event_sent, values, PUP_window
+    global _gui_closed, _close_event_sent, values, PUP_window, ValuesOnGet, PUP_pending_event, PUP_title, PUP_message
+    
+    
 
     if _gui_closed:
         return 0
@@ -129,7 +166,7 @@ def gui_step(max_milliseconds=5):
 
     #event, values = window.read(timeout=max_milliseconds)
     window, event, values = sg.read_all_windows(timeout=max_milliseconds)
-    
+  
     if event == '__TIMEOUT__':
     # in an actual app we would not pass this event, 
     #    unless you want to see the timeout returns to VM
@@ -165,9 +202,18 @@ def gui_step(max_milliseconds=5):
     #   The basic program will read the values dictionary so not need to pass data.
     elif window == main_window:
 
+        main_window["-STATUS-"].update('Status: ')
+
         if event == 'Get':
+            # check with we need to warn user
             payload = "Get Click"
-            sd.post_event(event,payload)
+            if data_changed(window,ValuesOnGet):
+                PUP_title = "Warning"
+                PUP_message = "Data Not Saved, Continue?"
+                PUP_window =  create_popup(PUP_title, PUP_message,PY_PUP_YESNO)
+                PUP_pending_event = event
+            else:            
+                sd.post_event(event,payload)
         # #
         elif event == 'New':
             payload = "New Click"
@@ -192,14 +238,18 @@ def gui_step(max_milliseconds=5):
         elif event == 'Create ShipTo':
             payload = "Create ShipTo Click"
             sd.post_event(event,payload)
-        # #
-        elif event == '-PUP-':
-            if PUP_window == None:
-                PUP_window = my_popup('The PopUp','This PopUp Is For YOU!')
-                PUP_Visable = True
                 
+# pop up window event                
     elif window == PUP_window:
-        sd.post_event("Pup_window",event)
+        payload = "PUP Click"
+        if event == "-OK-":
+            sd.post_event(PUP_pending_event,payload)
+            window.close()
+        else:
+            window.close() 
+            PUP_window =  create_popup("Notice", "Action Canceled", PY_PUP_OK)
+        PUP_pending_event = ""
+
             
     return 0    
     
