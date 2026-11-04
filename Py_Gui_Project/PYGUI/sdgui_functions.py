@@ -115,17 +115,40 @@ def readwindow(window):
   
   dyn_array =  SDME_VM.join(keys_list) +  SDME_FM  + SDME_VM.join(values_list)
   return dyn_array  
+  
+  # return current window value for specified key as string (sd dyn array)
+def readwindowvalue(window,key):
+    # Extract live values across all widgets manually without reading the window again
+  values_list = []
+  obj = window.AllKeysDict.get(key)
+  if obj:
+    if hasattr(obj, 'get')or hasattr(obj, 'Values'):
+      if isinstance(obj, sg.Table):
+        # table data is list of lists row list of col lists  
+        table_data = obj.Values
+        rowdata = []
+        for row in table_data:
+             coldata = SDME_TM.join(row)
+             rowdata.append(coldata)
+        table_data = SDME_SVM.join(rowdata)     
+        values_list.append(table_data)
+                
+      else:        
+        values_list.append(obj.get())
+  
+  dyn_array =  SDME_VM.join(values_list)
+  return dyn_array 
 
 
 def data_changed(window,prior_values):
     if prior_values != {}:
 
-        print('prior_values')
+#        print('prior_values')
 #        for key, value in prior_values.items():
 #            print(f"{key}: {value}")
             
         current_values = snapshot(window) 
-        print('current_values')
+#        print('current_values')
 #        for key, value in current_values.items():
 #            print(f"{key}: {value}")
             

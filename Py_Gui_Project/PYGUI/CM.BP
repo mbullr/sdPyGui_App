@@ -2,6 +2,8 @@
 * Customer App
 * Sample app for PyGui testing on sd
 * This is as much a sample as a debug tool (to test out PYGUI) so do not expect a full blown app here!
+*  There are a load of crt statements that do not need to be here!
+* NOTE !!!!! This is a demo program, very little if any data validation is taking place!!!!
 *
 * Because we are running embedded within the sd app and it is possible the sd process could be alive for long periods of
 *  time, we should clean up (set to None) any objects created either within the _setup.py or _step.py script.
@@ -9,7 +11,7 @@
 *   the function defined in the _step.py script (in this example gui_step).  Currently it is hardcoded. 
 *
 * Suggested reading: SD GUI Python Cooperative Schedule.txt in the Documentation folder
-*
+* NOTE !!!!! This is a demo program, very little if any data validation is taking place!!!!
 **************************************************************************
 * This is free and unencumbered software released into the public domain.
 *
@@ -177,6 +179,9 @@ open "SHIP_TO" to CS_FILE ELSE
   stop
 end
 
+CM.REC = ''
+CS_REC = ''
+
 * get the dictionaries
 equate GLOBAL_DICT_SZ to 50
 dim global_dict_array(GLOBAL_DICT_SZ)
@@ -185,7 +190,7 @@ DIM CS_DICT(CS_SIZE)
 #define MAX_TABLES    5
 DIM TABLES(MAX_TABLES)             ;* at some point we need to figure how to automate dim size
 
-* open data files
+* grab dictionary records for CUSTOMERS
 GOSUB pop_dict("CUSTOMERS",CM_DICT_NAME)
 * rem cannot pass matrix in local sub
 for i = 1 to CM_SIZE
@@ -195,7 +200,8 @@ for i = 1 to CM_SIZE
     CRT 'Resize global_dict_array !!!'
   end
 next i
-*
+
+* grab dictionary records for SHIP_TO
 GOSUB pop_dict("SHIP_TO",CS_DICT_NAME)
 for i = 1 to CS_SIZE
   if i <= GLOBAL_DICT_SZ then
@@ -205,6 +211,7 @@ for i = 1 to CS_SIZE
   end
 next i
 
+* all important python initialization
 STATUS.VALUE = PY_INITIALIZE()
 if STATUS() # 0 then
     crt "Python initialization failed: ":STATUS()
@@ -271,43 +278,50 @@ loop while DONE = 0
 *
 *   give the gui some execution time (we execute one pass of function gui_step defined in our python setup script)
 *
-    STATUS.VALUE = PY_PYGUISTEP()
-    if STATUS() # 0 then
-        crt "PyGUI step failed: ":STATUS()
-        DONE = 1
-    END ELSE
+  STATUS.VALUE = PY_PYGUISTEP()
+  if STATUS() # 0 then
+    crt "PyGUI step failed: ":STATUS()
+    DONE = 1
+  END ELSE
 *
-*       now poll to see if the gui scheduled an event to process
-*    
-        EVENT = PY_PYPOLL()
-        if STATUS() = 0 then
-            EVENT.NAME = FIELD(EVENT,@FM, 1)
+*  now poll to see if the gui scheduled an event to process
+*
+    EVENT = PY_PYPOLL()
+    if STATUS() = 0 then
+      EVENT.NAME = FIELD(EVENT,@FM, 1)
+      
+      EVENT.DATA = FIELD(EVENT,@FM, 2)
+      crt "GUI EVENT"
+      crt "  NAME: ":EVENT.NAME
+      crt "PAYLOAD: ":EVENT.DATA
+      
+      if EVENT.NAME = "main_window" and EVENT.DATA = "closed" then
+        DONE = 1
+        exit      ;* get out of loop
+      end
+      
+      begin case            
+      case  EVENT.NAME = "Get" 
+        gosub Get.CM(CM_REC,CM_ID,CS_REC,CS_ID)
 
-            EVENT.DATA = FIELD(EVENT,@FM, 2)
-            crt "GUI EVENT"
-            crt "  NAME: ":EVENT.NAME
-            crt "PAYLOAD: ":EVENT.DATA
-            
-            if EVENT.NAME = "main_window" and EVENT.DATA = "closed" then
-                DONE = 1
-                exit      ;* get out of loop
-            end
-            
-            begin case            
-            case  EVENT.NAME = "Get" 
-                gosub Get.CM
-            
-            case EVENT.NAME = "File" 
-                gosub File.CM
-
-                
-            case 1 ;* unknown event
-                MSG = 'Status: EVENT - ': EVENT.NAME : ' Not Implemented!'
-                result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-            end case
-            
-        end     ;* poll failed, try again?
-    end
+      case EVENT.NAME = "File" 
+        gosub File.CM(CM_REC,CM_ID,CS_REC,CS_ID)
+          
+      case EVENT.NAME = "New"
+        CM.REC = ''
+        release CM_FILE
+        CS_REC = ''
+        release CS_FILE
+        *gosub New.CM(CM.REC,CS_REC)
+      
+          
+      case 1 ;* unknown event
+          MSG = 'Status: EVENT - ': EVENT.NAME : ' Not Implemented!'
+          result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+      end case
+        
+    end     ;* poll failed, try again?
+  end
 repeat
 
 SHUTDOWN:
@@ -379,8 +393,10 @@ end
 * Write the records
 * Refresh the GUI ??
 ******************************************************************************************************
-local subroutine File.CM
+local subroutine File.CM(CM_REC,CM_ID,CS_REC,CS_ID)
 * grab the values from the GUI
+* and populate CUSTOMER and SHIP_TO record.
+* Rem this is a demo program, very little if any data validation is taking place!!!!
 *
 * use function readwindow to create a dyn array of keys and values
 * screen_data<1> = keys in vm list
@@ -394,20 +410,125 @@ local subroutine File.CM
 rtn_stat = PY_CALLFUNCTION("readwindow","screen_data","main_window")
 
 if rtn_stat = 0 then
+  MAT TABLES = '' ;* used for building customer table data
 * now get the string readwindow created
   window_data = PY_STRGET("screen_data")
   
-  look at how the data was sent to the GUI,
-  possible lodgic:
-  for loop based on rec sz (# of fld)
-    xx_KEY_NAME dyn array tells us if a key's value is MV
-    tells us how key's value is mapped to mv record
-      for each table nbr
-        build column position to mv record fld mapped
-        process mv record population of table data
-        (
+  ** gosub display_file_data(window_data)   ;* for debugging
   
-  
+  keyct = dcount(window_data<1>, @vm)
+  valcnt = dcount(window_data<2>, @vm)
+  if keyct <> valcnt then
+    msg =  'Value and Key count mismatch in File.CM, cannot file'
+    crt msg
+    result = PY_GUIWINUPDATE("main_window","-STATUS-",msg)
+    
+  end else
+  *
+  * loop thru defined key list and get the value
+  *
+  * CUSTOMER data first, the SHIP_TO
+    for i = 1 to CM_SIZE
+      key = CM_KEY_NAME<i,1>
+      table_nbr = CM_KEY_NAME<i,2> + 0
+      col_nbr   = CM_KEY_NAME<i,3> + 0
+
+      locate key in window_data<1,1> setting idx else
+        msg =  'Key lookup failure: ':key:' for CUSTOMERS in File.CM, cannot file'
+        crt msg
+        result = PY_GUIWINUPDATE("main_window","-STATUS-",msg) 
+        return
+      end
+      
+      * get the value sent back from the GUI
+      data = window_data<2,idx>
+      
+      if table_nbr then
+        * deal with table data
+        * at some point i want a generic routine that deals with tables, for now its kind of file specific
+        *CM_KEY_NAME<CM_CONTACT> =       "CM_CONTACT":@VM:1:@VM:1
+        *CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:1:@VM:2
+        *CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:1:@VM:3
+        * deal with table data
+        * col_nbr tells us where the data for this record field resides within the value for this key
+        * also rem its in the form:  row 1  col1 data @TM col2 data @TM col3 data @svm
+        *                            row 2  col1 data @TM col2 data @TM col3 data @svm
+        *                            row n  col1 data @TM col2 data @TM col3 data
+        if TABLES(table_nbr) = '' then    ;* we have not pulled data for this table, do it
+          tdata = data
+          * convert value markers to allow dyn array use
+          convert @svm to @fm in tdata
+          convert @tm  to @vm in tdata
+          TABLES(table_nbr) = tdata   ;* and save for use for balance of table deconstuction
+        end
+        *
+        * pull this fld data from TABLES
+        flddata = ''
+        rowct = dcount(tdata,@fm)
+        for ri = 1 to rowct
+          if CM_DICT(i)<3> # '' then    ;* there is a conversion code
+            flddata<1,-1> = iconv(tdata<ri,col_nbr>,CM_DICT(i)<3>)
+          end else
+            flddata<1,-1> = tdata<ri,col_nbr>
+          end
+        next ri
+        CM_REC<i> = flddata
+           
+      end else
+        * normal data, just populate fld
+        if CM_DICT(i)<3> # '' then    ;* there is a conversion code
+          CM_REC<i> = iconv(data,CM_DICT(i)<3>)
+        end else
+          CM_REC<i> = data<1,vmi>
+        end
+      end
+      
+    next i
+
+    * now the SHIP_TO
+    for i = 1 to CS_SIZE
+      key = CS_KEY_NAME<i,1>
+      table_nbr = CS_KEY_NAME<i,2> + 0
+      col_nbr   = CS_KEY_NAME<i,3> + 0
+
+      locate key in window_data<1,1> setting idx else
+        msg =  'Key lookup failure:' :key:' for SHIP_TO in File.CM, cannot file'
+        crt msg
+        result = PY_GUIWINUPDATE("main_window","-STATUS-",msg) 
+        return
+      end
+      
+      * get the value sent back from the GUI
+      data = window_data<2,idx>
+      
+      if table_nbr then
+        null ;* there are no tables defined in the SHIP_TO record 
+      end else
+        * normal data, just populate fld
+        if CS_DICT(i)<3> # '' then    ;* there is a conversion code
+          CS_REC<i> = iconv(data,CS_DICT(i)<3>)
+        end else
+          CS_REC<i> = data<1,vmi>
+        end
+      end  
+
+    next i
+    write CM_REC on CM_FILE, CM_ID
+    write CS_REC on CS_FILE, CS_ID
+
+  end  ;* keyct <> valcnt
+*
+end else
+  crt 'readwindow failed'
+end
+
+return
+end
+********************************************************************************
+* display what we got back from the GUI
+* for debugging only
+*******************************************************************************
+local subroutine display_file_data(window_data)
   keyct = dcount(window_data<1>, @vm)
   valcnt = dcount(window_data<2>, @vm)
   crt 'counts: ':keyct: ' ' :valcnt
@@ -432,158 +553,150 @@ if rtn_stat = 0 then
       crt window_data<2,i>
     end      
   next i
-  
-end else
-  crt 'readwindow failed'
-end
-
 return
 end
-
-
-
-
 
 ******************************************************************************************************
 * get.cm
 * get cm record and populate window with values
-local subroutine Get.CM
-    TABLES(1) = ''     ;* used for building customer table data
-    if SAVE.REQUIRED then
-        MSG = 'Status: Data not saved, Cancel current changes then Get new Customer!'
-        result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-    end else
-        CM_ID = PY_DICTVALGETS("values","CM_LIST")
-        CM_ID = trim(field(CM_ID,":",1))
-        if CM_ID = '' then
-            MSG = 'Status: No Customer Id Found'
-            result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-        end else
-            * if we had a previous lock on a CUSTOMERS record, release it
-            release CM_FILE
-            readu CM_REC from CM_FILE, CM_ID locked
-                locked_by = status()
-                MSG = 'Status: ': CS_ID : 'Locked By User:' :locked_by :' Try later'
-                result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-                        
-            end then
-                CS_ID = CM_REC<CM_DFLT_SHIP_ID>
-                read CS_REC from CS_FILE, CS_ID else
-                    MSG = 'Status: ': CS_ID : ' Not Found in SHIP_TO!'
-                    result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-                end
-                * populate window with customer data 
-                key_list = ''
-                value_list = ''
-                for i = 1 to CM_SIZE
-                  table_nbr = CM_KEY_NAME<i,2> + 0 
-                  * is this a data item that belongs in a table?
-                  if table_nbr > 0 then
+local subroutine Get.CM (CM_REC,CM_ID,CS_REC,CS_ID)
+CM.REC = ''
+CS_REC = ''
+MAT TABLES = ''  ;* used for building customer table data
 
-                  * yes (rem this means the field is multi value)
-                  if table_nbr > MAX_TABLES then
-                    CRT 'Resize Tables Array!'
-                    return 
-                  end
-                  
-                    tbl_name = upcase(CM_KEY_NAME<i,1>)
-                    fld_loc = CM_KEY_NAME<i,3> + 0       ;* defines col position in table
-                    
-                  *CM_KEY_NAME<CM_CONTACT> =       "CM_CONTACT":@VM:1:@VM:1
-                  *CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:1:@VM:2
-                  *CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:1:@VM:3
-                  
-                    data = CM_REC<i>
-                    
-                    vm_count = dcount(data,@VM)
-                    
-                    for vmi = 1 to vm_count
-                      if CM_DICT(i)<3> # '' then    ;* there is a conversion code
-                        tdata = oconv(data<1,vmi>,CM_DICT(i)<3>)
-                      end else
-                        tdata = data<1,vmi>
-                      end
-                      TABLES(table_nbr)<1,vmi,fld_loc> = tdata
-                    next vmi
-                  
-                  end else                    
-                    data = CM_REC<i>
-                    if CM_DICT(i)<3> # '' then    ;* there is a conversion code
-                      data = oconv(data,CM_DICT(i)<3>)
-                    end
-                    value_list<1,-1> = data
-                    key_list<1,-1>   = CM_KEY_NAME<i>
-                  end
-                next i
-                * 
-                * and now the default ship to
-                for i = 1 to CS_SIZE
-                  * note: 
-                  * there are not tables in ship_to record so why is this here??
-                  if upcase(CS_DICT(i)<6>) = "M" then
-                    * multi value field and most likely added to table, skip for now
-                    null    
-                  end else
-                    data = CS_REC<i>
-                    if CS_DICT(i)<3> # '' then    ;* there is a conversion code
-                      data = oconv(data,CS_DICT(i)<3>)
-                    end
-                    value_list<1,-1> = data
-                    key_list<1,-1>   = CS_KEY_NAME<i>
-                  end
-                next i
-                *
-                * load the ship_to list
-                *
-                SHIPTO_LIST = ''  
-                SHIPTO_LIST_IDX  = ''
-                SHIPTO_LIST_CT = 0
-                *
-                * get the dropdown list for ship_to records for this customer                
-                 CALL GUI.SEARCH2 ("SHIP_TO","CS_CM_ID",'!':CM_ID,"CS_NAME","CS_ADDR,CS_CITY,CS_STATE",1000,1,SHIPTO_LIST,SHIPTO_LIST_IDX,SHIPTO_LIST_CT,"TRIM",EMSG)
-                * load values into drop down list with key 'CM_LIST'
-                *CRT 'shipto_list: ' : SHIPTO_LIST
-                rtn_stat = values_load("main_window",'CS_LIST','MY_CS_LIST',SHIPTO_LIST)
+* Get the currently selected customer id from the GUI
+* note cannot use this CM_ID = PY_DICTVALGETS("values","CM_LIST")
+* when processing PUP_pending_event, must read from main_window
+*
+rtn_stat = PY_CALLFUNCTION("read_cm_key","screen_data","main_window")
+CM_ID = PY_STRGET("screen_data")
+CM_ID = trim(field(CM_ID,":",1))
 
-                if rtn_stat = 0 then
-                  * load the customer data (including ship to) except for tables
-                  rtn_stat = PY_GUIWINUPDATES("main_window",key_list,value_list)
-                  if rtn_stat = 0 then
-                  * attempt to load the table data
-                    rtn_stat = PY_LISTCLR("CUST_CONTACTS")
-                    rtn_stat1 = PY_GUITABLESET("CUST_CONTACTS",TABLES(1))
-                    rtn_stat2 = PY_GUIWINUPDVALUES("main_window","CM_CONTACT","CUST_CONTACTS")
-                    if rtn_stat + rtn_stat1 + rtn_stat2 <> 0 then
-                      MSG = 'Status: ': CM_ID :' Table Load Failed: ':rtn_stat:' ':rtn_stat1:' ':rtn_stat2
-                      result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-                    end else
-                        * take a snapshot of the current values on the screen
-                        * we use this to test for data change and save ("file") required
-                        rtn_stat = PY_CALLFUNCTION("snapshot","ValuesOnGet","main_window")
-
-                        *rtn_stat = PY_POPUP("create_popup", "PUP_window", "PUP_title", "Get CM Title", "PUP_message", "CM Loaded","PUP_style",PY_PUP_OK)
-
-                    end
-                    
-                  end else
-                    * customer data load failed
-                    MSG = 'Status: ': CM_ID :' Load Failed: ':rtn_stat
-                    result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-                  end
-
-                end else
-                  crt "SHIP_TO List Load failed: ":STATUS()
-                  MSG = 'Status: SHIP_TO List Load failed: ':rtn_stat
-                  result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG) 
-                end
-                *
-
-            end else
-                    MSG = 'Status: ': CM_ID :' Not Found in CUSTOMERS!'
-                    result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
-            end
+if CM_ID = '' then
+  MSG = 'Status: No Customer Id Found'
+  result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+end else
+  * if we had a previous lock on a CUSTOMERS record, release it
+  release CM_FILE
+  readu CM_REC from CM_FILE, CM_ID locked
+      locked_by = status()
+      MSG = 'Status: ': CS_ID : 'Locked By User:' :locked_by :' Try later'
+      result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+              
+  end then
+      CS_ID = CM_REC<CM_DFLT_SHIP_ID>
+      read CS_REC from CS_FILE, CS_ID else
+          MSG = 'Status: ': CS_ID : ' Not Found in SHIP_TO!'
+          result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+      end
+      * populate window with customer data 
+      key_list = ''
+      value_list = ''
+      for i = 1 to CM_SIZE
+        table_nbr = CM_KEY_NAME<i,2> + 0 
+        * is this a data item that belongs in a table?
+        if table_nbr > 0 then
+        * yes (rem this means the field is multi value)
+        if table_nbr > MAX_TABLES then
+          CRT 'Resize Tables Array!'
+          return 
         end
-    end
+        
+          tbl_name = upcase(CM_KEY_NAME<i,1>)
+          fld_loc = CM_KEY_NAME<i,3> + 0       ;* defines col position in table
+          
+        *CM_KEY_NAME<CM_CONTACT> =       "CM_CONTACT":@VM:1:@VM:1
+        *CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:1:@VM:2
+        *CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:1:@VM:3
+        
+          data = CM_REC<i>
+          
+          vm_count = dcount(data,@VM)
+          
+          for vmi = 1 to vm_count
+            if CM_DICT(i)<3> # '' then    ;* there is a conversion code
+              tdata = oconv(data<1,vmi>,CM_DICT(i)<3>)
+            end else
+              tdata = data<1,vmi>
+            end
+            TABLES(table_nbr)<1,vmi,fld_loc> = tdata
+          next vmi
+        
+        end else                    
+          data = CM_REC<i>
+          if CM_DICT(i)<3> # '' then    ;* there is a conversion code
+            data = oconv(data,CM_DICT(i)<3>)
+          end
+          value_list<1,-1> = data
+          key_list<1,-1>   = CM_KEY_NAME<i>
+        end
+      next i
+      * 
+      * and now the default ship to
+      for i = 1 to CS_SIZE
+        * note: 
+        * there are not tables in ship_to record so why is this here??
+        if upcase(CS_DICT(i)<6>) = "M" then
+          * multi value field and most likely added to table, skip for now
+          null    
+        end else
+          data = CS_REC<i>
+          if CS_DICT(i)<3> # '' then    ;* there is a conversion code
+            data = oconv(data,CS_DICT(i)<3>)
+          end
+          value_list<1,-1> = data
+          key_list<1,-1>   = CS_KEY_NAME<i>
+        end
+      next i
+      *
+      * load the ship_to list
+      *
+      SHIPTO_LIST = ''  
+      SHIPTO_LIST_IDX  = ''
+      SHIPTO_LIST_CT = 0
+      *
+      * get the dropdown list for ship_to records for this customer                
+       CALL GUI.SEARCH2 ("SHIP_TO","CS_CM_ID",'!':CM_ID,"CS_NAME","CS_ADDR,CS_CITY,CS_STATE",1000,1,SHIPTO_LIST,SHIPTO_LIST_IDX,SHIPTO_LIST_CT,"TRIM",EMSG)
+      * load values into drop down list with key 'CM_LIST'
+      *CRT 'shipto_list: ' : SHIPTO_LIST
+      rtn_stat = values_load("main_window",'CS_LIST','MY_CS_LIST',SHIPTO_LIST)
+      if rtn_stat = 0 then
+        * load the customer data (including ship to) except for tables
+        rtn_stat = PY_GUIWINUPDATES("main_window",key_list,value_list)
+        
+        if rtn_stat = 0 then
+        * attempt to load the table data, rem tables are lists of lists, must clear existing list or we end up appending
+          rtn_stat = PY_LISTCLR("CUST_CONTACTS")
+          * load the list that will load the customer contacts table (note we are cheating here, this is not generic)
+          rtn_stat1 = PY_GUITABLESET("CUST_CONTACTS",TABLES(1))
+          * finally load the actual table data (key: CM_CONTACT, values is list CUST_CONTACTS)
+          rtn_stat2 = PY_GUIWINUPDVALUES("main_window","CM_CONTACT","CUST_CONTACTS")
+          if rtn_stat + rtn_stat1 + rtn_stat2 <> 0 then
+            MSG = 'Status: ': CM_ID :' Table Load Failed: ':rtn_stat:' ':rtn_stat1:' ':rtn_stat2
+            result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+          end else
+              * take a snapshot of the current values on the screen
+              * we use this to test for data change and save ("file") required
+              rtn_stat = PY_CALLFUNCTION("snapshot","ValuesOnGet","main_window")
+              *rtn_stat = PY_POPUP("create_popup", "PUP_window", "PUP_title", "Get CM Title", "PUP_message", "CM Loaded","PUP_style",PY_PUP_OK)
+          end
+          
+        end else
+          * customer data load failed
+          MSG = 'Status: ': CM_ID :' Load Failed: ':rtn_stat
+          result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+        end
+      end else
+        crt "SHIP_TO List Load failed: ":STATUS()
+        MSG = 'Status: SHIP_TO List Load failed: ':rtn_stat
+        result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG) 
+      end
+      *
+  end else
+          MSG = 'Status: ': CM_ID :' Not Found in CUSTOMERS!'
+          result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
+  end
+end
 return
 end
 

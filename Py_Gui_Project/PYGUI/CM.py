@@ -71,7 +71,10 @@ CUST_CONTACTS = []
 #
 # used to check for record changed
 ValuesOnGet = {}
+
 # used to read the GUI from the vm
+# ie) PY_CALLFUNCTION("readwindow","screen_data","main_window")
+# then) window_data = PY_STRGET("screen_data")
 screen_data = ""
 
 
@@ -109,7 +112,7 @@ def create_popup(my_title, my_message,Style):
 
 def app_window():
   Frame1_layout = [
-  [sg.Text(text='Customer Id',size=(11,1)),sg.Combo("", key='CM_LIST', size=(11,1)), sg.Button(button_text='Get',size=(5,1))],
+  [sg.Text(text='Customer Id',size=(11,1)),sg.Combo("", key='CM_LIST', size=(11,1), readonly=True), sg.Button(button_text='Get',size=(5,1))],
   [sg.Button(button_text='New',size=(5,1))],
   [sg.Text(text='Name',size=(9,1)),sg.Input(size=(29,1),key='CM_NAME')],
   [sg.Text(text='Addr1',size=(9,1)),sg.Input(size=(29,1),key='CM_ADDR')],
@@ -145,6 +148,11 @@ def app_window():
   [sg.Text(text='Status:', key = '-STATUS-',size=(80,1))]
   ] 
   return sg.Window('Customers', CM_layout, size=(860,600),location=(100, 200),  resizable=True,  finalize=True)
+  
+def read_cm_key(window):
+    cm_key = readwindowvalue(window,"CM_LIST")
+    return cm_key
+    
   
 #
 # define the all important step function
@@ -243,6 +251,7 @@ def gui_step(max_milliseconds=5):
     elif window == PUP_window:
         payload = "PUP Click"
         if event == "-OK-":
+            # test what the popup was asking about
             sd.post_event(PUP_pending_event,payload)
             window.close()
         else:
