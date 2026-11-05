@@ -29,10 +29,16 @@
 # function to reset window 
 import FreeSimpleGUI as sg
 
+# sd field markers
 SDME_FM  = chr(254)
 SDME_VM  = chr(253)
 SDME_SVM = chr(252)
 SDME_TM =  chr(251)
+
+# POP UP window button formats
+PY_PUP_OK = "PY_PUP_OK"
+PY_PUP_YESNO = "PY_PUP_YESNO"
+PY_PUP_OKCANCEL = "PY_PUP_OKCANCEL"
 
 def reset_form(window):
   for key, element in window.key_dict.items():
@@ -158,3 +164,41 @@ def data_changed(window,prior_values):
             return True
     else:
         return False
+        
+# function to define our popup (cannot use freesimplegui standard pop up (they will be blocking)
+# keys to button are always -OK- to proceed, -NO- to not proceed
+def create_popup(my_title, my_message,Style):
+    if Style == PY_PUP_OK:
+        btns = [sg.Button('OK', key='-OK-')]
+    elif Style == PY_PUP_YESNO:
+        btns = [sg.Button('Yes', key='-OK-'), sg.Button('No', key='-NO-')]
+    elif Style == PY_PUP_OKCANCEL:
+        btns = [sg.Button('OK', key='-OK-'), sg.Button('Cancel', key='-NO-')]
+    else:
+       btns = [sg.Button('Yes', key='-OK-'), sg.Button('No', key='-NO-')]
+       
+    my_layout = [
+                  [sg.Text(my_message)],
+                   btns
+                  ]
+                  
+    popup = sg.Window(my_title, my_layout, location=(100, 200), modal=True, finalize=True)
+    #
+    # if there is a main_window, move popup into its window
+    # (main_window is a global in read scope
+    if main_window:
+    # Get main window position and size
+      x0, y0 = main_window.current_location(more_accurate=True)
+      w0, h0 = main_window.size
+
+      # Get popup window size
+      w1, h1 = popup.size
+
+      # Calculate center coordinates
+      new_x = x0 + (w0 - w1) // 2
+      new_y = y0 + (h0 - h1) // 2
+
+      popup.move(new_x, new_y)
+    
+    return popup
+    

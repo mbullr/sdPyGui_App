@@ -49,6 +49,7 @@ equate CM_CONTACT       to    14
 equate CM_CONTACT_PHONE to    15
 equate CM_CONTACT_EMAIL to    16
 equate CM_DFLT_SHIP_ID  to    17
+equate CM_REP           to    18
 
 equate CS_NAME to 1
 equate CS_ADDR          to    2
@@ -173,6 +174,7 @@ END
     dicts<-1> = 'CM_CONTACT_PHONE,D,15,,CONTACT PHONE,10T,M,CM_CONTACTS'
     dicts<-1> = 'CM_CONTACT_EMAIL,D,16,,CONTACT EMAIL,25T,M,CM_CONTACTS'
     dicts<-1> = 'CM_DFLT_SHIP_ID,D,17,,DEFAULT SHIPTO,25T,S'
+    dicts<-1> = 'CM_REP,D,18,,CUSTOMER REP,25T,S'
 *
     dicts<-1> = '@ID,D,0,,ID,10L,S'
     dicts<-1> = 'CM_ID,D,0,,CUST ID,10L,S'

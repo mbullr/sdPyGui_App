@@ -77,36 +77,15 @@ ValuesOnGet = {}
 # then) window_data = PY_STRGET("screen_data")
 screen_data = ""
 
-
+# all important main window
+main_window = None
+# and a holder for our popup
 PUP_window = None
 PUP_title = ""
 PUP_message = ""
 PUP_style = ""
 PUP_pending_event =  ""
 
-PY_PUP_OK = "PY_PUP_OK"
-PY_PUP_YESNO = "PY_PUP_YESNO"
-PY_PUP_OKCANCEL = "PY_PUP_OKCANCEL"
-
-# function to define our popup (cannot use freesimplegui standard pop up (they will be blocking)
-# keys to button are always -OK- to proceed, -NO- to not proceed
-def create_popup(my_title, my_message,Style):
-    if Style == PY_PUP_OK:
-        btns = [sg.Button('OK', key='-OK-')]
-    elif Style == PY_PUP_YESNO:
-        btns = [sg.Button('Yes', key='-OK-'), sg.Button('No', key='-NO-')]
-    elif Style == PY_PUP_OKCANCEL:
-        btns = [sg.Button('OK', key='-OK-'), sg.Button('Cancel', key='-NO-')]
-    else:
-       btns = [sg.Button('Yes', key='-OK-'), sg.Button('No', key='-NO-')]
-       
-    my_layout = [
-                  [sg.Text(my_message)],
-                   btns
-                  ]
-    return sg.Window(my_title, my_layout, location=(100, 200), modal=True, finalize=True)
-    
-  
 #
 # function to define the main app window
 
@@ -127,8 +106,8 @@ def app_window():
   ] 
   
   frmShipTo_layout = [
-  [sg.Text(text='Ship To Id',size=(11,1)),sg.Combo("", key='CS_LIST', size=(11,1)), sg.Button(button_text='Get ShipTo',size=(10,1))],
-  [sg.Button(button_text='New Ship To',size=(11,1))],
+  [sg.Text(text='Ship To Id',size=(11,1)),sg.Combo("", key='CS_LIST', size=(11,1)), sg.Button(button_text='Get ShipTo',size=(10,1), disabled=True)],
+  [sg.Button(button_text='Save As New',size=(11,1), disabled=True)],
   [sg.Text(text='Name',size=(5,1)),sg.Input(size=(30,1),key='CS_NAME')],
   [sg.Text(text='Addr1',size=(5,1)),sg.Input(size=(30,1),key='CS_ADDR')],
   [sg.Text(text='Addr2',size=(5,1)),sg.Input(size=(30,1),key='CS_ADDR2')],
@@ -144,14 +123,25 @@ def app_window():
   [],
   [sg.Text(text='Customer Contacts',size=(17,1))],
   [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[20, 12, 30,10])],
-  [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1)),sg.Button(button_text='Delete Customer',size=(8,2))],
+  [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1))],
   [sg.Text(text='Status:', key = '-STATUS-',size=(80,1))]
   ] 
   return sg.Window('Customers', CM_layout, size=(860,600),location=(100, 200),  resizable=True,  finalize=True)
   
 def read_cm_key(window):
-    cm_key = readwindowvalue(window,"CM_LIST")
-    return cm_key
+  cm_key = readwindowvalue(window,"CM_LIST")
+  return cm_key
+    
+def create_ship_to():
+  cs_key = readwindowvalue(main_window,"CS_LIST")
+  if cs_key == "":
+    cm_key = readwindowvalue(main_window,"CM_LIST")
+    if cm_key == "":
+      cs_key = cm_key + '.1'
+      main_window['CS_LIST'].update(value=cs_key)
+      main_window['CS_NAME'].update(value=main_window['CM_NAME'].get())
+        
+        
     
   
 #
@@ -160,107 +150,122 @@ def read_cm_key(window):
 # Note the py function name "gui_step" is hardcoded into the c function sd_py_gui_step defined in sdext_py.c
 #   at some point we should make the function name a parameter, but not today......
 def gui_step(max_milliseconds=5):
-    # note we must declare as global otherwise our sd functions will not find in global dict 
-    global _gui_closed, _close_event_sent, values, PUP_window, ValuesOnGet, PUP_pending_event, PUP_title, PUP_message
-    
-    
-
-    if _gui_closed:
-        return 0
-
-    if not main_window.TKroot.winfo_exists():
-        _gui_closed = True
-        return 0
-
-    #event, values = window.read(timeout=max_milliseconds)
-    window, event, values = sg.read_all_windows(timeout=max_milliseconds)
+  # note we must declare as global otherwise our sd functions will not find in global dict 
+  global _gui_closed, _close_event_sent, values, PUP_window, ValuesOnGet, PUP_pending_event, PUP_title, PUP_message
   
-    if event == '__TIMEOUT__':
-    # in an actual app we would not pass this event, 
-    #    unless you want to see the timeout returns to VM
-    #    sd.post_event(event, event)
-        pass
-    
-    # closing window logic
-    elif event == sg.WIN_CLOSED:
-        # main window?, if so close everything  down
-        if window == main_window: 
-            window.close()
-            _gui_closed = True
-            _close_event_sent = True
-            # if the popup is still open, make sure it closes!
-            if PUP_window: PUP_window.close()
-            # finally tell the VM we are done
-            sd.post_event("main_window", "closed")
-            return 0
-            
-        # if it is our popup, close it and toss its object (otherwise we cannot re create it)
-        elif window == PUP_window:
-            window.close()
-            PUP_window = None
+  
 
-        # other window, just close it
-        else:
-            window.close()
-            
-            
-    # main window event logic
-    #  catch all the defined events (for now just buttons)
-    #  Note payload is limited in size to 4K? 
-    #   The basic program will read the values dictionary so not need to pass data.
-    elif window == main_window:
+  if _gui_closed:
+    return 0
 
-        main_window["-STATUS-"].update('Status: ')
+  if not main_window.TKroot.winfo_exists():
+    _gui_closed = True
+    return 0
 
-        if event == 'Get':
-            # check with we need to warn user
-            payload = "Get Click"
-            if data_changed(window,ValuesOnGet):
-                PUP_title = "Warning"
-                PUP_message = "Data Not Saved, Continue?"
-                PUP_window =  create_popup(PUP_title, PUP_message,PY_PUP_YESNO)
-                PUP_pending_event = event
-            else:            
-                sd.post_event(event,payload)
-        # #
-        elif event == 'New':
-            payload = "New Click"
-            sd.post_event(event,payload)
-        # #
-        elif event == 'File':
-            payload = "File Click"
-            sd.post_event(event,payload)
-        # #
-        elif event == 'Cancel':
-            payload = "Cancel Click"
-            sd.post_event(event,payload)
-        # #
-        elif event == 'Delete Customer':
-            payload = "Delete Customer Click"
-            sd.post_event(event,payload)
-        # #
-        elif event == 'Delete ShipTo':
-            payload = "Delete ShipTo Click"
-            sd.post_event(event,payload)
-        # #
-        elif event == 'Create ShipTo':
-            payload = "Create ShipTo Click"
-            sd.post_event(event,payload)
-                
-# pop up window event                
+  #event, values = window.read(timeout=max_milliseconds)
+  window, event, values = sg.read_all_windows(timeout=max_milliseconds)
+
+  if event == '__TIMEOUT__':
+  # in an actual app we would not pass this event, 
+  #    unless you want to see the timeout returns to VM
+  #    sd.post_event(event, event)
+    pass
+  
+  # closing window logic
+  elif event == sg.WIN_CLOSED:
+    # main window?, if so close everything  down
+    if window == main_window: 
+      window.close()
+      _gui_closed = True
+      _close_event_sent = True
+      # if the popup is still open, make sure it closes!
+      if PUP_window:
+        PUP_window.close()
+      # finally tell the VM we are done
+      sd.post_event("main_window", "closed")
+      return 0
+          
+    # if it is our popup, close it and toss its object (otherwise we cannot re create it)
     elif window == PUP_window:
-        payload = "PUP Click"
-        if event == "-OK-":
-            # test what the popup was asking about
-            sd.post_event(PUP_pending_event,payload)
-            window.close()
-        else:
-            window.close() 
-            PUP_window =  create_popup("Notice", "Action Canceled", PY_PUP_OK)
-        PUP_pending_event = ""
+      window.close()
+      PUP_window = None
 
-            
-    return 0    
+    # other window, just close it
+    else:
+      window.close()
+          
+          
+  # main window event logic
+  #  catch all the defined events (for now just buttons)
+  #  Note payload is limited in size to 4K? 
+  #   The basic program will read the values dictionary so not need to pass data.
+  elif window == main_window:
+
+    main_window["-STATUS-"].update('Status: ')
+
+    if event == 'Get':
+      # check with we need to warn user
+      payload = "Get Click"
+      if data_changed(window,ValuesOnGet):
+        PUP_title = "Warning"
+        PUP_message = "Data Not Saved, Continue?"
+        PUP_window =  create_popup(PUP_title, PUP_message,PY_PUP_YESNO)
+        PUP_pending_event = event
+      else:            
+        sd.post_event(event,payload)
+      # #
+    elif (event == 'New') or (event == 'Cancel'):
+      # check with we need to warn user
+      payload = "New Click"
+      if data_changed(window,ValuesOnGet):
+        PUP_title = "Warning"
+        PUP_message = "Data Not Saved, Continue?"
+        PUP_window =  create_popup(PUP_title, PUP_message,PY_PUP_YESNO)
+        PUP_pending_event = event
+      else: 
+        sd.post_event(event,payload)
+        reset_form(main_window)
+        ValuesOnGet.clear()
+      # #
+    elif event == 'File':
+      payload = "File Click"
+      sd.post_event(event,payload)
+    # #
+    elif event == 'Delete Customer':
+      payload = "Delete Customer Click"
+      sd.post_event(event,payload)
+      # #
+    elif event == 'Delete ShipTo':
+      payload = "Delete ShipTo Click"
+      sd.post_event(event,payload)
+      # #
+    elif event == 'Create ShipTo':
+      payload = "Create ShipTo Click"
+      sd.post_event(event,payload)
+              
+# pop up window event                
+  elif window == PUP_window:
+    payload = "PUP Click"
+    if event == "-OK-":
+      # some events we process locally
+      if PUP_pending_event == 'Cancel' or PUP_pending_event == 'New':
+        reset_form(main_window)
+        ValuesOnGet.clear()
+        # post what the popup was asking about
+        sd.post_event(PUP_pending_event,payload)
+      
+      else:
+        # post what the popup was asking about
+        sd.post_event(PUP_pending_event,payload)
+      window.close()
+
+    else:
+      window.close() 
+      PUP_window =  create_popup("Notice", "Action Canceled", PY_PUP_OK)
+      PUP_pending_event = ""
+
+          
+  return 0    
     
     
     

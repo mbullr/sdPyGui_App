@@ -65,7 +65,8 @@ equate CM_CONTACT       to    14
 equate CM_CONTACT_PHONE to    15
 equate CM_CONTACT_EMAIL to    16
 equate CM_DFLT_SHIP_ID  to    17
-equate CM_SIZE  to    17
+equate CM_REP           to    18
+equate CM_SIZE  to    18
 
 equate CS_NAME to 1
 equate CS_ADDR          to    2
@@ -110,7 +111,8 @@ CM_KEY_NAME<CM_WEB> = "CM_WEB"
 CM_KEY_NAME<CM_CONTACT> =       "CM_CONTACT":@VM:1:@VM:1
 CM_KEY_NAME<CM_CONTACT_PHONE> = "CM_CONTACT":@VM:1:@VM:2
 CM_KEY_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT":@VM:1:@VM:3
-CM_KEY_NAME<CM_DFLT_SHIP_ID> = "CM_DFLT_SHIP_ID" 
+CM_KEY_NAME<CM_DFLT_SHIP_ID> = "CM_DFLT_SHIP_ID"
+CM_KEY_NAME<CM_REP>          = "CM_REP" 
 
 CM_DICT_NAME = ''
 CM_DICT_NAME<CM_NAME> = "CM_NAME"
@@ -130,6 +132,7 @@ CM_DICT_NAME<CM_CONTACT> = "CM_CONTACT"
 CM_DICT_NAME<CM_CONTACT_PHONE> = "CM_CONTACT_PHONE"
 CM_DICT_NAME<CM_CONTACT_EMAIL> = "CM_CONTACT_EMAIL"
 CM_DICT_NAME<CM_DFLT_SHIP_ID> = "CM_DFLT_SHIP_ID" 
+CM_DICT_NAME<CM_REP>          = "CM_REP"
 
 * SHIP_TO records
 *
@@ -213,23 +216,23 @@ next i
 
 * all important python initialization
 STATUS.VALUE = PY_INITIALIZE()
-if STATUS() # 0 then
-    crt "Python initialization failed: ":STATUS()
+if STATUS.VALUE # 0 then
+    crt "Python initialization failed: ":STATUS.VALUE
     stop
 end
 *
 crt "loading common functions module sdgui_functions.py"
 FUNC.FILE = @PATH:"/PYGUI/sdgui_functions.py"
 STATUS.VALUE = PY_RUNFILE(FUNC.FILE)
-if STATUS() # 0 then
-    crt "PYGui functions load failed: ":STATUS()
+if STATUS.VALUE # 0 then
+    crt "PYGui functions load failed: ":STATUS.VALUE
     goto SHUTDOWN
 end
 *
 crt "Setup Gui Window"
 STATUS.VALUE = PY_RUNFILE(SETUP.FILE)
-if STATUS() # 0 then
-    crt "PYGui setup failed: ":STATUS()
+if STATUS.VALUE # 0 then
+    crt "PYGui setup failed: ":STATUS.VALUE
     goto SHUTDOWN
 end
 
@@ -263,7 +266,8 @@ rtn_stat = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
 **CALL LIST.LOAD(VAL.FVAR,"CM.STATUS","2",'',STATUS.LIST,STATUS.IDX,LIST.COUNT,EMSG)
 **IF EMSG <> "" THEN GOTO EXIT.999
 
-SAVE.REQUIRED = @FALSE     ;* has there been a change to the existing record?
+GOSUB Setup_New_Cust
+
 CRT "Run the gui loop"
 DONE = 0
 *
@@ -307,13 +311,8 @@ loop while DONE = 0
       case EVENT.NAME = "File" 
         gosub File.CM(CM_REC,CM_ID,CS_REC,CS_ID)
           
-      case EVENT.NAME = "New"
-        CM.REC = ''
-        release CM_FILE
-        CS_REC = ''
-        release CS_FILE
-        *gosub New.CM(CM.REC,CS_REC)
-      
+      case (EVENT.NAME = "New") or (EVENT.NAME = "Cancel")
+        gosub Setup_New_Cust
           
       case 1 ;* unknown event
           MSG = 'Status: EVENT - ': EVENT.NAME : ' Not Implemented!'
@@ -385,6 +384,23 @@ if rtn_stat # 0 then
 end
 return
 end
+
+******************************************************************************************************
+* Setup_New_Cust
+*
+local subroutine Setup_New_Cust
+
+ CM.REC = ''
+ CM_ID = ''
+ release CM_FILE
+ CS_REC = ''
+ CS_ID = ''
+ release CS_FILE
+ *gosub New.CM(CM.REC,CS_REC)
+
+return
+end
+
 ******************************************************************************************************
 * File.CM
 * Save the CM Record along 
@@ -479,7 +495,7 @@ if rtn_stat = 0 then
         if CM_DICT(i)<3> # '' then    ;* there is a conversion code
           CM_REC<i> = iconv(data,CM_DICT(i)<3>)
         end else
-          CM_REC<i> = data<1,vmi>
+          CM_REC<i> = data
         end
       end
       
@@ -513,8 +529,23 @@ if rtn_stat = 0 then
       end  
 
     next i
+    *
+    * Need to validate records !!
+    *
+    crt 'Validate Records Not Implemented!!!!'
     write CM_REC on CM_FILE, CM_ID
     write CS_REC on CS_FILE, CS_ID
+    
+    * clear data from the GUI
+    rtn_str = PY_CALLFUNCTIONS("reset_form","main_window")
+    
+    * reset the values saved on the last Get (Rec Change Test)
+    rtn_str = PY_CLEARDICT("ValuesOnGet")
+    
+    * let user know data was written
+    msg =  'Customer Record: ':CM_ID:' Updated'
+    crt msg
+    result = PY_GUIWINUPDATE("main_window","-STATUS-",msg)
 
   end  ;* keyct <> valcnt
 *
