@@ -30,7 +30,7 @@ PROGRAM BLD_CM
 * EQUATE:
 *
 *  - creates dummy db file CUSTOMERS
-*  - CUSTOMERS populated with data found in PYGUI/customer_records.csv
+*  - CUSTOMERS populated with data found in PYGUI/csv/customer_records.csv
 *
 equate CM_NAME to 1
 equate CM_ADDR          to    2
@@ -91,9 +91,18 @@ END
       CRT 'CANNOT CREATE SHIP_TO'
       STOP
     END
+    OPEN 'NEXT_ID' to ID_FILE ELSE
+      CRT ' NO NEXT_ID File, Creating'
+      EXECUTE "CREATE.FILE NEXT_ID"
+      OPEN 'NEXT_ID' to ID_FILE ELSE
+        CRT 'CANNOT OPEN NEXT_ID'
+        STOP
+      END
+    END
 * CREATE RECORDS
-    OPEN "PYGUI" TO PYGUI_FILE THEN
-        READ CM_RECS FROM PYGUI_FILE, "customer_records.csv" THEN
+CSV_PATH = @PATH:"/PYGUI/csv"
+    OPENPATH CSV_PATH TO CSV_FILE THEN
+        READ CM_RECS FROM CSV_FILE, "customer_records.csv" THEN
             REC_CNT = DCOUNT(CM_RECS,@FM)
             FOR I = 2 TO REC_CNT           ;* rem 1st record is headings
                 REC = CM_RECS<I>
@@ -141,16 +150,19 @@ END
                 WRITE CS_REC ON CS_FILE, CS_ID
                 
             NEXT I
+            NXT_CM = I+99
+            WRITE NXT_CM on ID_FILE, "CUSTOMERS"
+            
         END ELSE
-            CRT 'CANNOT READ customer_records.csv FROM BP'
+            CRT 'CANNOT READ customer_records.csv FROM: ': CSV_PATH
             STOP
         END
     END ELSE
-        CRT 'CANNOT OPEN BP'
+        CRT 'CANNOT OPEN: ': CSV_PATH
         STOP
     END
     
-    CLOSE PYGUI_FILE
+    CLOSE CSV_PATH
     CLOSE CM_FILE
     CLOSE CS_FILE
 *

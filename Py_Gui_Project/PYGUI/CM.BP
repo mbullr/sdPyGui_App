@@ -164,7 +164,7 @@ CS_DICT_NAME<CS_FAX> = "CS_FAX"
 
 
 * rem to point these to where you save the python scripts
-SETUP.FILE = @PATH:"/PYGUI/CM.py"
+SETUP.FILE = @PATH:"/PYGUI/py/CM.py"
 openseq SETUP.FILE to SETUP.F else 
   crt 'Cannot open setup file: ':SETUP.FILE
   stop
@@ -181,6 +181,10 @@ open "SHIP_TO" to CS_FILE ELSE
   crt 'CANNOT CREATE SHIP_TO'
   stop
 end
+OPEN 'NEXT_ID' to ID_FILE ELSE
+  CRT 'CANNOT OPEN NEXT_ID'
+  STOP
+END
 
 CM.REC = ''
 CS_REC = ''
@@ -222,7 +226,7 @@ if STATUS.VALUE # 0 then
 end
 *
 crt "loading common functions module sdgui_functions.py"
-FUNC.FILE = @PATH:"/PYGUI/sdgui_functions.py"
+FUNC.FILE = @PATH:"/PYGUI/py/sdgui_functions.py"
 STATUS.VALUE = PY_RUNFILE(FUNC.FILE)
 if STATUS.VALUE # 0 then
     crt "PYGui functions load failed: ":STATUS.VALUE
@@ -532,7 +536,28 @@ if rtn_stat = 0 then
     *
     * Need to validate records !!
     *
+
+    * Is this a new customer record?
+    if CM_ID = "" then
+      * yes, get the next ids
+      readu nxt_id from ID_FILE, "CUSTOMERS" locked
+        locked_by = status()
+        MSG = 'Status:  NEXT_ID Locked By User:' :locked_by :' Try later'
+        result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG) 
+        return
+      end then
+        CM_ID = 'CM_':nxt_id
+        nxt_id += 1
+        write nxt_id on ID_FILE, "CUSTOMERS"
+      end else
+        MSG = 'Status:  Unable to Read NEXT_ID, see Admin!'
+        result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG) 
+        return
+      end
+    end
+     
     crt 'Validate Records Not Implemented!!!!'
+      
     write CM_REC on CM_FILE, CM_ID
     write CS_REC on CS_FILE, CS_ID
     
@@ -728,6 +753,68 @@ end else
           result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
   end
 end
+return
+end
+
+local subroutine cm.shipto.validate
+*
+*
+* VALIDATE THE CM RECORD
+* RETURNS CM.REC.VALID T/F
+*
+CM.SHIPTO.VALID = @TRUE
+CM.VALIDATE.MSG = ''
+*
+BEGIN CASE
+*
+   CASE  CM_REC<CM_STATUS> = ''
+      CM.VALIDATE.MSG = 'Customer status is a required field'
+*
+   CASE CM_REC<CM_NAME> = ''
+      CM.VALIDATE.MSG = 'Customer name is a required field'
+*
+   CASE CM_REC<CM_ADDR> = ''
+      CM.VALIDATE.MSG = 'Customer street address is a required field'
+*
+   CASE CM_REC<CM_CITY> = ''
+      CM.VALIDATE.MSG = 'Customer city is a required field'
+*
+   CASE  CM_REC<CM_STATE> = ''
+      CM.VALIDATE.MSG = 'Customer state is a required field'
+*
+   CASE  CM_REC<CM_ZIP> = ''
+      CM.VALIDATE.MSG = 'Customer zip code is a required field'
+*
+   CASE  CM_REC<CM_TERMS> = ''
+      CM.VALIDATE.MSG = 'Customer payment terms'
+*
+   CASE  CM_REC<CM_AR_LIMIT> < 0
+      CM.VALIDATE.MSG = 'Customer credit limit must be >= 0'
+*
+*
+* VALIDATE SHIP TO RECORD ALSO
+*
+*
+   CASE CS_REC<CS_NAME> = ''
+      CM.VALIDATE.MSG = 'Ship to name is a required field'
+*
+   CASE CS_REC<CS_ADDR> = ''
+      CM.VALIDATE.MSG = 'Ship to street address is a required field'
+*
+   CASE CS_REC<CS_CITY> = ''
+      CM.VALIDATE.MSG = 'Ship to city is a required field'
+*
+   CASE  CS_REC<CS_STATE> = ''
+      CM.VALIDATE.MSG = 'Ship to state is a required field'
+*
+   CASE  CS_REC<CS_ZIP> = ''
+      CM.VALIDATE.MSG = 'Ship to zip code is a required field'
+   
+   CASE  CS_REC<CS_STATUS> = ''
+      CM.VALIDATE.MSG = 'Customer Ship To status is a required field'
+*
+
+END CASE
 return
 end
 
