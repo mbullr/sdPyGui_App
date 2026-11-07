@@ -162,7 +162,7 @@ CSV_PATH = @PATH:"/PYGUI/csv"
         STOP
     END
     
-    CLOSE CSV_PATH
+    CLOSE CSV_FILE
     CLOSE CM_FILE
     CLOSE CS_FILE
 *
