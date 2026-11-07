@@ -62,7 +62,13 @@ STATES_LIST = [
     "NJ", "NM", "NV", "NY", "OH", "OK", "OR", "PA", "RI", "SC", 
     "SD", "TN", "TX", "UT", "VA", "VT", "WA", "WI", "WV", "WY"
 ]
-CM_STAT_LIST = ['A : Active', 'I : Inactive', 'HS : Hold Shipment', 'HB : Hold Bookings']
+
+CM_STAT_MAP = {'Active' : 'A', 'Inactive' : 'I', 'Hold Shipment' : 'HS', 'Hold Bookings' : 'HB'}
+CM_STAT_LIST = list(CM_STAT_MAP.keys())
+CS_STAT_LIST = ['A', 'I'] 
+
+
+
 CM_TERMS_LIST = ['2/10 Net 30', 'Net 10', 'Net 30', 'Net 45', 'Net 60', 'COD']
 # and our table loader lists
 #COL_LIST = []
@@ -101,8 +107,8 @@ def app_window():
   [sg.Text(text='AR Limit',size=(9,1)),sg.Input(size=(11,1),key='CM_AR_LIMIT'),sg.Text(text='Terms',size=(5,1)),sg.Combo(size=(11,1),key='CM_TERMS',values=CM_TERMS_LIST)],
   [sg.Text(text='Phone',size=(9,1)),sg.Input(size=(12,1),key='CM_PHONE'),sg.Text(text='Fax',size=(5,1)),sg.Input(size=(12,1),key='CM_FAX')],
   [sg.Text(text='Web Site',size=(8,1)),sg.Input(size=(19,1),key='CM_WEB'),sg.Text(text='Status',size=(6,1)),sg.Combo(size=(11,1),key='CM_STATUS',values=CM_STAT_LIST)],
-  [sg.Text(text='Rep',size=(8,1)),sg.Input(size=(19,1),key='CM_REP'),sg.Text(text='ShipTo',size=(6,1)),sg.Text(text='      ',size=(11,1), key = 'CM_DFLT_SHIP_ID') ],
-  [sg.Button(button_text='Create ShipTo',size=(7,2), disabled=True)]  
+  [sg.Text(text='Rep',size=(8,1)),sg.Input(size=(19,1),key='CM_REP'),sg.Text(text='ShipTo',size=(6,1)),sg.Input(size=(11,1), key = 'CM_DFLT_SHIP_ID', readonly=True) ],
+  [sg.Button(button_text='Populate ShipTo',size=(7,2), disabled=True)]  
   ] 
   
   frmShipTo_layout = [
@@ -114,35 +120,36 @@ def app_window():
   [sg.Text(text='City, St.',size=(9,1)),sg.Input(size=(21,1),key='CS_CITY'),sg.Combo(size=(8,1),key='CS_STATE',values=STATES_LIST)],
   [sg.Text(text='Zip, Co',size=(9,1)),sg.Input(size=(12,1),key='CS_ZIP'),sg.Input(size=(15,1),key='CS_COUNTRY')],
   [sg.Text(text='Phone',size=(9,1)),sg.Input(size=(12,1),key='CS_PHONE'),sg.Text(text='Fax',size=(3,1)),sg.Input(size=(12,1),key='CS_FAX')],
-  [sg.Text(text='Status',size=(5,1)),sg.Combo(size=(11,1),key='CS_STATUS',values='')],
+  [sg.Text(text='Status',size=(5,1)),sg.Combo(size=(11,1),key='CS_STATUS',values=CS_STAT_LIST)],
   [sg.Button(button_text='Set As Default',size=(12,2))]
   ]
   
   CM_layout = [
-  [sg.Frame(size=(260,250),title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',size=(260,250),layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
+  #[sg.Frame(size=(300,400),title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',size=(260,400),layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
+  [sg.Frame(title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
   [],
   [sg.Text(text='Customer Contacts',size=(17,1))],
-  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[20, 12, 30,10])],
+  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[25, 15, 30,15])],
   [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1))],
   [sg.Text(text='Status:', key = '-STATUS-',size=(80,1))]
   ] 
-  return sg.Window('Customers', CM_layout, size=(860,600),location=(100, 200),  resizable=True,  finalize=True)
+  return sg.Window('Customers', CM_layout, location=(100, 200),  resizable=True,  finalize=True)
   
 def read_cm_key(window):
   cm_key = readwindowvalue(window,"CM_LIST")
   return cm_key
     
 def create_ship_to():
-  cs_key = readwindowvalue(main_window,"CS_LIST")
-  if cs_key == "":
-    cm_key = readwindowvalue(main_window,"CM_LIST")
-    if cm_key == "":
-      cs_key = cm_key + '.1'
-      main_window['CS_LIST'].update(value=cs_key)
-      main_window['CS_NAME'].update(value=main_window['CM_NAME'].get())
-        
-        
-    
+  main_window['CS_NAME'].update(value=main_window['CM_NAME'].get())
+  main_window['CS_ADDR'].update(value=main_window['CM_ADDR'].get()) 
+  main_window['CS_ADDR2'].update(value=main_window['CM_ADDR2'].get())
+  main_window['CS_CITY'].update(value=main_window['CM_CITY'].get())
+  main_window['CS_STATE'].update(value=main_window['CM_STATE'].get())
+  main_window['CS_ZIP'].update(value=main_window['CM_ZIP'].get())
+  main_window['CS_COUNTRY'].update(value=main_window['CM_COUNTRY'].get())
+  main_window['CS_PHONE'].update(value=main_window['CM_PHONE'].get())
+  main_window['CS_FAX'].update(value=main_window['CM_FAX'].get())
+
   
 #
 # define the all important step function
@@ -213,6 +220,7 @@ def gui_step(max_milliseconds=5):
         PUP_pending_event = event
       else:            
         sd.post_event(event,payload)
+        window['Populate ShipTo'].update(disabled=True)
       # #
     elif (event == 'New') or (event == 'Cancel'):
       # check with we need to warn user
@@ -226,22 +234,20 @@ def gui_step(max_milliseconds=5):
         sd.post_event(event,payload)
         reset_form(main_window)
         ValuesOnGet.clear()
+        window['Populate ShipTo'].update(disabled=False)
       # #
     elif event == 'File':
+      # need to convert to actual status code  
+      main_window['CM_STATUS'].update(value=CM_STAT_MAP.get(main_window.AllKeysDict.get('CM_STATUS').get()))  
       payload = "File Click"
       sd.post_event(event,payload)
+      window['Populate ShipTo'].update(disabled=True)
     # #
-    elif event == 'Delete Customer':
-      payload = "Delete Customer Click"
-      sd.post_event(event,payload)
+    elif event == 'Populate ShipTo':
+      create_ship_to()
+      window['Populate ShipTo'].update(disabled=True)
       # #
-    elif event == 'Delete ShipTo':
-      payload = "Delete ShipTo Click"
-      sd.post_event(event,payload)
-      # #
-    elif event == 'Create ShipTo':
-      payload = "Create ShipTo Click"
-      sd.post_event(event,payload)
+
               
 # pop up window event                
   elif window == PUP_window:
@@ -253,22 +259,26 @@ def gui_step(max_milliseconds=5):
         ValuesOnGet.clear()
         # post what the popup was asking about
         sd.post_event(PUP_pending_event,payload)
+        if PUP_pending_event == 'New':
+          window['Populate ShipTo'].update(disabled=False)
       
       else:
         # post what the popup was asking about
         sd.post_event(PUP_pending_event,payload)
+        window['Populate ShipTo'].update(disabled=True)
       window.close()
 
     else:
       window.close() 
       PUP_window =  create_popup("Notice", "Action Canceled", PY_PUP_OK)
       PUP_pending_event = ""
+      window['Populate ShipTo'].update(disabled=True)
 
           
   return 0    
     
     
-    
+sg.set_options(font=("Helvetica", 11))
 main_window = app_window()
 #
 # rem print(window.key_dict.keys()) to list keys in window

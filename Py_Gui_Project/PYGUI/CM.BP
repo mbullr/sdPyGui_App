@@ -263,12 +263,6 @@ end
 MSG = 'Status: OK'
 rtn_stat = PY_GUIWINUPDATE("main_window","-STATUS-",MSG)
 
-**CALL LIST.LOAD(VAL.FVAR,"STATES","2",'',STATES.LIST,STATES.IDX,LIST.COUNT,EMSG)
-**IF EMSG <> "" THEN GOTO EXIT.999
-**CALL LIST.LOAD(VAL.FVAR,"TERMS","2",'',TERMS.LIST,TERMS.IDX,LIST.COUNT,EMSG)
-**IF EMSG <> "" THEN GOTO EXIT.999
-**CALL LIST.LOAD(VAL.FVAR,"CM.STATUS","2",'',STATUS.LIST,STATUS.IDX,LIST.COUNT,EMSG)
-**IF EMSG <> "" THEN GOTO EXIT.999
 
 GOSUB Setup_New_Cust
 
@@ -329,7 +323,8 @@ repeat
 
 SHUTDOWN:
 crt "sd CM.BP app ended: ":STATUS.VALUE
-
+* end of program
+STOP
 
 ********************************************************************************************************
 * pop_dict
@@ -394,7 +389,7 @@ end
 *
 local subroutine Setup_New_Cust
 
- CM.REC = ''
+ CM_REC = ''
  CM_ID = ''
  release CM_FILE
  CS_REC = ''
@@ -528,7 +523,7 @@ if rtn_stat = 0 then
         if CS_DICT(i)<3> # '' then    ;* there is a conversion code
           CS_REC<i> = iconv(data,CS_DICT(i)<3>)
         end else
-          CS_REC<i> = data<1,vmi>
+          CS_REC<i> = data
         end
       end  
 
@@ -536,7 +531,13 @@ if rtn_stat = 0 then
     *
     * Need to validate records !!
     *
-
+    gosub cm.shipto.validate(is_valid,err_msg)
+    if not(is_valid) then
+      MSG = 'Status:  ':err_msg
+      result = PY_GUIWINUPDATE("main_window","-STATUS-",MSG) 
+      return
+    end 
+    
     * Is this a new customer record?
     if CM_ID = "" then
       * yes, get the next ids
@@ -547,6 +548,8 @@ if rtn_stat = 0 then
         return
       end then
         CM_ID = 'CM_':nxt_id
+        CS_ID = CM_ID:'.1'
+        CM_REC<CM_DFLT_SHIP_ID> = CS_ID
         nxt_id += 1
         write nxt_id on ID_FILE, "CUSTOMERS"
       end else
@@ -556,7 +559,6 @@ if rtn_stat = 0 then
       end
     end
      
-    crt 'Validate Records Not Implemented!!!!'
       
     write CM_REC on CM_FILE, CM_ID
     write CS_REC on CS_FILE, CS_ID
@@ -756,7 +758,7 @@ end
 return
 end
 
-local subroutine cm.shipto.validate
+local subroutine cm.shipto.validate(CM.SHIPTO.VALID,CM.VALIDATE.MSG)
 *
 *
 * VALIDATE THE CM RECORD
@@ -767,9 +769,7 @@ CM.VALIDATE.MSG = ''
 *
 BEGIN CASE
 *
-   CASE  CM_REC<CM_STATUS> = ''
-      CM.VALIDATE.MSG = 'Customer status is a required field'
-*
+
    CASE CM_REC<CM_NAME> = ''
       CM.VALIDATE.MSG = 'Customer name is a required field'
 *
@@ -790,6 +790,10 @@ BEGIN CASE
 *
    CASE  CM_REC<CM_AR_LIMIT> < 0
       CM.VALIDATE.MSG = 'Customer credit limit must be >= 0'
+      
+   CASE  CM_REC<CM_STATUS> = ''
+      CM.VALIDATE.MSG = 'Customer status is a required field'
+*   
 *
 *
 * VALIDATE SHIP TO RECORD ALSO
@@ -815,6 +819,10 @@ BEGIN CASE
 *
 
 END CASE
+* if there is a message, record is not valid
+if CM.VALIDATE.MSG # '' then
+  CM.SHIPTO.VALID = @FALSE
+end
 return
 end
 
