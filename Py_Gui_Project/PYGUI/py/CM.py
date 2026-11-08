@@ -124,12 +124,18 @@ def app_window():
   [sg.Button(button_text='Set As Default',size=(12,2))]
   ]
   
+  contact_layout = [
+  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=CUST_CONTACTS,num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[25, 15, 30,15],enable_events=True, justification='left', select_mode=sg.TABLE_SELECT_MODE_BROWSE,font=("Consolas", 11))],
+
+  [sg.Input(size=(25,1),key="CC_NAME",font=("Consolas", 11),pad=0),sg.Input(size=(15,1),key="CC_PHONE",font=("Consolas", 11),pad=0),sg.Input(size=(30,1),key="CC_EMAIL",font=("Consolas", 11),pad=0),sg.Input(size=(15,1),key="CC_FAX",font=("Consolas", 11),pad=0)],
+  [sg.Button("Add Row", key="ADD_ROW"), sg.Button("Delete Row", key="DELETE_ROW"), sg.Button("Edit Row", key="EDIT_ROW")],
+  ]
+  
   CM_layout = [
-  #[sg.Frame(size=(300,400),title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',size=(260,400),layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
   [sg.Frame(title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
   [],
   [sg.Text(text='Customer Contacts',size=(17,1))],
-  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=[],num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[25, 15, 30,15])],
+  [sg.Frame(title='',layout = contact_layout)],
   [sg.Button(button_text='File',size=(8,1)),sg.Button(button_text='Cancel',size=(8,1))],
   [sg.Text(text='Status:', key = '-STATUS-',size=(80,1))]
   ] 
@@ -235,6 +241,7 @@ def gui_step(max_milliseconds=5):
         reset_form(main_window)
         ValuesOnGet.clear()
         window['Populate ShipTo'].update(disabled=False)
+        CUST_CONTACTS.clear()
       # #
     elif event == 'File':
       # need to convert to actual status code  
@@ -247,7 +254,19 @@ def gui_step(max_milliseconds=5):
       create_ship_to()
       window['Populate ShipTo'].update(disabled=True)
       # #
-
+      #  customer contacts table events need local handling
+      ##
+    elif event == "CM_CONTACT":
+      selected_rows = values["CM_CONTACT"]
+      if selected_rows:
+        row_idx = selected_rows[0]  # Get row index
+        print(f"Selected row index: {row_idx}")
+        
+    elif event == "ADD_ROW":
+        # 
+        new_row = [values["CC_NAME"],values["CC_PHONE"],values["CC_EMAIL"],values["CC_FAX"]]
+        CUST_CONTACTS.append(new_row)
+        window["CM_CONTACT"].update(values=CUST_CONTACTS)
               
 # pop up window event                
   elif window == PUP_window:
@@ -257,6 +276,7 @@ def gui_step(max_milliseconds=5):
       if PUP_pending_event == 'Cancel' or PUP_pending_event == 'New':
         reset_form(main_window)
         ValuesOnGet.clear()
+        CUST_CONTACTS.clear()
         # post what the popup was asking about
         sd.post_event(PUP_pending_event,payload)
         if PUP_pending_event == 'New':
