@@ -124,12 +124,24 @@ def app_window():
   [sg.Button(button_text='Set As Default',size=(12,2))]
   ]
   
-  contact_layout = [
-  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email', 'Contact Fax'],values=CUST_CONTACTS,num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[25, 15, 30,15],enable_events=True, justification='left', select_mode=sg.TABLE_SELECT_MODE_BROWSE,font=("Consolas", 11))],
 
-  [sg.Input(size=(25,1),key="CC_NAME",font=("Consolas", 11),pad=0),sg.Input(size=(15,1),key="CC_PHONE",font=("Consolas", 11),pad=0),sg.Input(size=(30,1),key="CC_EMAIL",font=("Consolas", 11),pad=0),sg.Input(size=(15,1),key="CC_FAX",font=("Consolas", 11),pad=0)],
-  [sg.Button("Add Row", key="ADD_ROW"), sg.Button("Delete Row", key="DELETE_ROW"), sg.Button("Edit Row", key="EDIT_ROW")],
+  
+  col1 = sg.Column([
+  [sg.Table(headings=['Customer Name', 'Contact Phone', 'Contact Email'],values=CUST_CONTACTS,num_rows=6,key='CM_CONTACT',alternating_row_color="light steel blue",auto_size_columns=False,col_widths=[25, 15, 30],enable_events=True, justification='left', select_mode=sg.TABLE_SELECT_MODE_BROWSE,font=("Consolas", 11))],
+
+  [sg.Input(size=(32,1),key="CC_NAME",font=("Consolas", 11),pad=0),sg.Input(size=(18,1),key="CC_PHONE",font=("Consolas", 11),pad=0),sg.Input(size=(37,1),key="CC_EMAIL",font=("Consolas", 11),pad=0)]
+  ])
+  
+  
+  col2 = sg.Column([
+  [sg.Button("Add Row", key="ADD_ROW")],
+  [sg.Button("Delete Row", key="DELETE_ROW")],
+  [sg.Button("Edit Row", key="EDIT_ROW"),sg.Button("Save", key="SAVE_ROW"),],
+  [sg.Text("Current Selection"),sg.Input(size=(5,1),key="CC_SELECT",readonly=True)]
   ]
+  )
+
+  contact_layout = [[col1,col2]]
   
   CM_layout = [
   [sg.Frame(title='',layout = Frame1_layout,expand_x=True,expand_y=True),sg.Frame(title='Ship To',layout = frmShipTo_layout,expand_x=True,expand_y=True),sg.Menu([['Menu',['Help','About']]])],
@@ -260,14 +272,36 @@ def gui_step(max_milliseconds=5):
       selected_rows = values["CM_CONTACT"]
       if selected_rows:
         row_idx = selected_rows[0]  # Get row index
-        print(f"Selected row index: {row_idx}")
+        window["CC_SELECT"].update(value=row_idx)
+
         
     elif event == "ADD_ROW":
         # 
-        new_row = [values["CC_NAME"],values["CC_PHONE"],values["CC_EMAIL"],values["CC_FAX"]]
+        new_row = [values["CC_NAME"],values["CC_PHONE"],values["CC_EMAIL"]]
         CUST_CONTACTS.append(new_row)
         window["CM_CONTACT"].update(values=CUST_CONTACTS)
-              
+        
+    elif event == "EDIT_ROW":
+      try:
+        row_idx = int(values["CC_SELECT"])
+      except:
+        row_idx = -1
+      if row_idx >= 0 and row_idx < len(CUST_CONTACTS):
+        window["CC_NAME"].update(value=CUST_CONTACTS[row_idx][0])
+        window["CC_PHONE"].update(value=CUST_CONTACTS[row_idx][1])
+        window["CC_EMAIL"].update(value=CUST_CONTACTS[row_idx][2])
+        
+    elif event == "SAVE_ROW":
+      try:
+        row_idx = int(values["CC_SELECT"])
+      except:
+        row_idx = -1
+      if row_idx >= 0 and row_idx < len(CUST_CONTACTS):
+        CUST_CONTACTS[row_idx][0] = values["CC_NAME"]
+        CUST_CONTACTS[row_idx][1] = values["CC_PHONE"]
+        CUST_CONTACTS[row_idx][2] = values["CC_EMAIL"]
+        window["CM_CONTACT"].update(values=CUST_CONTACTS)
+        
 # pop up window event                
   elif window == PUP_window:
     payload = "PUP Click"

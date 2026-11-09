@@ -636,6 +636,10 @@ if CM_ID = '' then
 end else
   * if we had a previous lock on a CUSTOMERS record, release it
   release CM_FILE
+  
+  * clear data from the GUI
+  rtn_str = PY_CALLFUNCTIONS("reset_form","main_window")
+  
   readu CM_REC from CM_FILE, CM_ID locked
       locked_by = status()
       MSG = 'Status: ': CS_ID : 'Locked By User:' :locked_by :' Try later'
