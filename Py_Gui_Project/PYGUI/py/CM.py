@@ -280,12 +280,12 @@ def gui_step(max_milliseconds=5):
         # post what the popup was asking about
         sd.post_event(PUP_pending_event,payload)
         if PUP_pending_event == 'New':
-          window['Populate ShipTo'].update(disabled=False)
+          main_window['Populate ShipTo'].update(disabled=False)
       
       else:
         # post what the popup was asking about
         sd.post_event(PUP_pending_event,payload)
-        window['Populate ShipTo'].update(disabled=True)
+        main_window['Populate ShipTo'].update(disabled=True)
       window.close()
 
     else:
